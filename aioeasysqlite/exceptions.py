@@ -1,5 +1,5 @@
 # aioeasysqlite - Async SQLite client for Python
-# Copyright (c) 2025 Your Name
+# Copyright (c) 2025 Treizd
 #
 # This file is part of aioeasysqlite.
 #
@@ -11,6 +11,9 @@ class AioEasySqliteError(Exception):
     """Base class for aioeasysqlite exceptions ^-^."""
     pass
 
+class EncodeError(AioEasySqliteError):
+    """Raised when could not convert value to bytes."""
+    pass
 
 class PathNotFound(AioEasySqliteError):
     """Raised when the specified database path does not exist."""

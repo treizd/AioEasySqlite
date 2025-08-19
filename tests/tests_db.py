@@ -1,5 +1,5 @@
 # aioeasysqlite - Async SQLite client for Python
-# Copyright (c) 2025 Your Name
+# Copyright (c) 2025 Treizd
 #
 # This file is part of aioeasysqlite.
 #
@@ -8,13 +8,13 @@
 
 
 import pytest
+import tempfile
 import aiosqlite
 import os
 from typing import List, Tuple, Dict, Union
 
 import sys
 path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-
 
 if path not in sys.path:
     sys.path.insert(0, path)
@@ -24,17 +24,7 @@ from aioeasysqlite.exceptions import * # FIXED BY ADDING TO PATH
 
 # TESTING BEFORE UPLOADING PROJECT
 
-TEST_DB_PATH = "C:\\Users\\MSI\\Desktop\\aioeasysqlite\\tests\\tests.db"
-
-@pytest.fixture(scope="function", autouse=True)
-async def setup_database():
-    if os.path.exists(TEST_DB_PATH):
-        os.remove(TEST_DB_PATH)
-    async with aiosqlite.connect(TEST_DB_PATH) as conn:
-        await conn.commit()
-    yield
-    if os.path.exists(TEST_DB_PATH):
-        os.remove(TEST_DB_PATH)
+TEST_DB_PATH = r"C:\Users\MSI\Desktop\My\aioeasysqlite\tests\tests.db"
 
 @pytest.mark.asyncio
 async def test_init():

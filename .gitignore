@@ -23,3 +23,6 @@ Thumbs.db
 build/
 dist/
 *.egg-info/
+
+# PyPI credentials file
+.pypirc

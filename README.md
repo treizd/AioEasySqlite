@@ -5,9 +5,7 @@
     <br>
     <b>Easier aiosqlite version</b>
     <br>
-    <a href="example.com">
-        Documentation
-    </a>
+    Sorry, no documentation provided at the moment.
     •
     <a href="https://t.me/+4h_rZvpLwSA3NWIy">
         Chat
@@ -16,10 +14,6 @@
 
 ## AioEasySqlite
 License: MIT
-
-> [!NOTE]
-> Column type "BLOB" is not available at the moment.
-
 
 
 ``` python
@@ -59,6 +53,5 @@ pip3 install aioeasysqlite
 
 ### Resources
 
-- Check out the [docs](example.com) to learn more about AioEasySqlite.
 - Join the [official channel](https://t.me/opentracing) and stay tuned for news, updates and announcements.
 - Join the [official chat](https://t.me/+4h_rZvpLwSA3NWIy) to communicate with people.

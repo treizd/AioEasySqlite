@@ -1,5 +1,5 @@
 # aioeasysqlite - Async SQLite client for Python
-# Copyright (c) 2025 Your Name
+# Copyright (c) 2025 Treizd
 #
 # This file is part of aioeasysqlite.
 #
@@ -17,12 +17,10 @@ from .exceptions import *
 class db:
 
     """
-
     Main class of the library.
-
+    
     :param path_to_database: Path to database.
     :type path_to_database: :obj:`str`
-
     """
 
     def __init__(self, path_to_database: str):
@@ -32,47 +30,37 @@ class db:
         if not os.path.exists(path_to_database):
             raise PathNotFound(f"No such path: '{path_to_database}'.")
 
-        self.path_to_database: str = path_to_database
+        self.path_to_database = path_to_database
         self.tables: Dict[str, Dict] = {}
         self.types: Dict[str, type] = {
             "INTEGER": int,
             "REAL": float,
-            "TEXT": str
+            "TEXT": str,
+            "BLOB": bytes
         }
-    
 
     async def clear_database(self):
-
         """
-
         Clears the entire database by deleting the file and recreating it.
-
         """
-
         try:
             if os.path.exists(self.path_to_database):
                 os.remove(self.path_to_database)
             async with aiosqlite.connect(self.path_to_database) as conn:
                 await conn.commit()
                 print("Database was cleared.")
-        
         except aiosqlite.Error as e:
-            raise AioEasySqliteError(f"Database error: {e}") 
-            
-        
+            raise AioEasySqliteError(f"Database error: {e}")
+
     async def new_table(self, name: str):
-    
         """
-
         This function just saves the name for the new table. It does not create one yet.
-
+        
         :param name: Alphanumeric name of the table.
         :type name: :obj:`str`
-
+        
         :return: None
-
         """
-
         available_chars = string.ascii_letters + string.digits + '_'
 
         if not os.path.exists(self.path_to_database):
@@ -80,7 +68,7 @@ class db:
 
         if name.startswith("sqlite_"):
             raise InvalidTableName(f"Table name '{name}' can not start with 'sqlite_'.")
-
+        
         if not all([str(char) in available_chars for char in name]):
             raise InvalidCharacterInName(f"Table name '{name}' has inappropriate characters. Appropriate characters are: {available_chars}.")
 
@@ -89,34 +77,16 @@ class db:
         
         self.tables[name] = {"columns": []}
 
+    async def get_table(self, table: str) -> Union[List[Dict], None]:
         """
-            Example structure of self.tables:
-
-                tables = {
-                    "users": {
-                        "columns": [
-                            {"name": "id", "type": "INTEGER", "is_unique": True},
-                            {"name": "name", "type": "TEXT", "is_unique": False}
-                        ]
-                    }
-                }
-        """
-        
-    
-    async def get_table(self, table: str) -> List[Dict] | None:
-
-        """
-
         This function returns all values in the table
-
+        
         :param table: Table name.
         :type table: :obj:`str`
-
+        
         :return: All values if table is not empty else None
         :rtype: :obj:`List[Dict] | None`
-
         """
-
         try:
             if not os.path.exists(self.path_to_database):
                 raise PathNotFound(f"No such path: '{self.path_to_database}'.")
@@ -138,36 +108,20 @@ class db:
                     return result
         
         except aiosqlite.Error as e:
-            raise AioEasySqliteError(f"Database error: {e}") 
-            
-        """
-            get_table return example:
+            raise AioEasySqliteError(f"Database error: {e}")
 
-            arr = [
-                {
-                    "id": 1,
-                    "name": "Kyle",
-                    "surname: "Butler"
-                }
-            ]
-        """
-        
     async def edit_table(self, table: str, new_name: str):
-
         """
-
         This function edits the name of selected table.
-
+        
         :param table: The name of the table to change.
         :type table: :obj:`str`
-
+        
         :param new_name: The name to set.
         :type new_name: :obj:`str`
-
+        
         :return: None
-
         """
-
         try:
             available_chars = string.ascii_letters + string.digits + '_'
 
@@ -183,10 +137,8 @@ class db:
             if new_name in self.tables:
                 raise TableAlreadyExists(f"Table with name '{new_name}' already exists.")
 
-            
             self.tables[new_name] = self.tables[table]
             del self.tables[table]
-            
 
             sql = f"ALTER TABLE \"{table}\" RENAME TO \"{new_name}\""
 
@@ -194,22 +146,18 @@ class db:
                 async with conn.cursor() as cursor:
                     await cursor.execute(sql)
                     await conn.commit()
-        
+
         except aiosqlite.Error as e:
-            raise AioEasySqliteError(f"Database error: {e}") 
-            
-        
+            raise AioEasySqliteError(f"Database error: {e}")
+
     async def delete_table(self, table: str):
-        
         """
-
         This function deletes table.
-
+        
         :param table: The name of the table to delete.
         :type table: :obj:`str`
-
+        
         :return: None
-
         """
         try:
             if not os.path.exists(self.path_to_database):
@@ -225,55 +173,50 @@ class db:
                     await conn.commit()
 
             del self.tables[table]
-        
+
         except aiosqlite.Error as e:
-            raise AioEasySqliteError(f"Database error: {e}") 
-            
-        
+            raise AioEasySqliteError(f"Database error: {e}")
+
     async def add_column(self, table: str, name: str, type: str, primary_key: bool = False, autoincrement: bool = False, not_null: bool = False, unique: bool = False, default: Union[str, int, float, None] = None):
-
         """
-
-        This function adds column to a table in database. 'BLOB' type is under development.
-
+        This function adds column to a table in database.
+        
         :param table: Name of the table.
         :type table: :obj:`str`
-
+        
         :param name: Alphanumeric and "_" column name.
         :type name: :obj:`str`
-
-        :param type: Type of the column. Can only be 'TEXT', 'INTEGER', 'REAL'.
+        
+        :param type: Type of the column. Can only be 'TEXT', 'INTEGER', 'REAL', 'BLOB'.
         :type type: :obj:`str`
         
         :param primary_key: Marks if the column is first key. Makes each value unique.
         :type primary_key: Optional[:obj:`bool`]
-
+        
         :param autoincrement: Only for 'INTEGER' type.
         :type autoincrement: Optional[:obj:`bool`]
-
+        
         :param not_null: Marks if values of the column can be.
         :type not_null: Optional[:obj:`bool`]
-
+        
         :param unique: Marks if each value must be unique. Unnecessary if column is used as primary_key.
         :type unique: Optional[:obj:`bool`]
-
+        
         :param default: Default value to set for each row of column. Use "NULL" instead of "False", "None"
         :type default: Optional[:obj:`str, int, float`]
-
+        
         :return: None
-
         """
-
         try:
             available_chars = string.ascii_letters + string.digits + '_'
-            
+
             if not os.path.exists(self.path_to_database):
                 raise PathNotFound(f"No such path: '{self.path_to_database}'.")
 
             if not all([str(char) in available_chars for char in name]):
                 raise InvalidCharacterInName(f"Column name '{name}' has inappropriate characters. Appropriate characters are: {available_chars}.")
 
-            if type not in ["TEXT", "INTEGER", "REAL"]:
+            if type not in ["TEXT", "INTEGER", "REAL", "BLOB"]:
                 raise UnknownColumnType(f"Unknown type: '{type}'.")
 
             if not table in self.tables:
@@ -308,17 +251,14 @@ class db:
                 parameters.append("DEFAULT ?")
                 default_value = default
 
-
             parameters_str = ' '.join(parameters)
 
-            
             async with aiosqlite.connect(self.path_to_database) as conn:
                 async with conn.cursor() as cursor:
                     if len(self.tables[table]["columns"]) == 1:
                         sql = f"CREATE TABLE IF NOT EXISTS \"{table}\" (\"{name}\" {type} {parameters_str})"
                     else:
                         sql = f"ALTER TABLE \"{table}\" ADD COLUMN \"{name}\" {type} {parameters_str}"
-
 
                     if default_value is not None:
                         await cursor.execute(sql, (default_value,))
@@ -327,29 +267,24 @@ class db:
                     await conn.commit()
 
         except aiosqlite.Error as e:
-            raise AioEasySqliteError(f"Database error: {e}") 
-            
-        
-    async def get_column(self, table: str, column: str, type: str) -> List[Tuple] | None:
+            raise AioEasySqliteError(f"Database error: {e}")
 
+    async def get_column(self, table: str, column: str, type: str) -> Union[List[Tuple], None]:
         """
-
         This function returns whole column.
-
+        
         :param table: Table name.
         :type table: :obj:`str`
-
+        
         :param column: Column name.
         :type column: :obj:`str`
-
+        
         :param type: First argument of tuple type. Available types: 'PK' for primary key (if exists) or 'IND' for index
         :type type: :obj:`str`
-
+        
         :return: List of tuples or None if database is empty. First argument is either primary key, or index
         :rtype: :obj:`List[Tuple] | None`
-
         """
-
         try:
             if not os.path.exists(self.path_to_database):
                 raise PathNotFound(f"No such path: '{self.path_to_database}'.")
@@ -388,6 +323,7 @@ class db:
                         else:
                             items = [i[0] for i in rows]
                             
+
                             output: List[Tuple] = []
                             for index, item in enumerate(items):
                                 output.append((index, item))
@@ -396,25 +332,20 @@ class db:
                         return None
 
         except aiosqlite.Error as e:
-            raise AioEasySqliteError(f"Database error: {e}") 
+            raise AioEasySqliteError(f"Database error: {e}")
             
-
     async def delete_column(self, table: str, column: str):
-
         """
-        
         This function deletes column from table
-
+        
         :param table: Table name.
         :type table: :obj:`str`
-
+        
         :param column: Column name.
         :type column: :obj:`str`
-
+        
         :return: None
-
         """
-
         try:
             if not os.path.exists(self.path_to_database):
                 raise PathNotFound(f"No such path: '{self.path_to_database}'.")
@@ -431,58 +362,59 @@ class db:
             raise AioEasySqliteError(f"Unknown error occured: {e}")
         
         
-    async def add_row(self, table: str, args: List[Tuple]):
-
+    async def add_row(self, table: str, args: List[Tuple[str, Union[str, int, float, bytes, None]]]):
         """
-
         This function adds new row to database table
 
         :param table: Table name.
         :type table: :obj:`str`
 
         :param args: All values to add.
-        :type args:  :obj:`List[Tuple]`
-
+        :type args: :obj:`List[Tuple]`
         """
-
         try:
             if not os.path.exists(self.path_to_database):
                 raise PathNotFound(f"No such path: '{self.path_to_database}'.")
-            
-            if not table in self.tables:
+
+            if table not in self.tables:
                 raise TableNotFound(f"No such table '{table}'.")
-            
+
             if not isinstance(args, list) or len(args) == 0:
                 raise InvalidArgsType(f"Incorrect type of args. Must be not empty list of tuples.")
 
             for couple in args:
                 if len(couple) != 2:
                     raise InvalidArgsLength(f"Len of each tuple in args must be exactly 2, not {len(couple)}.")
-            
-            cols: List[str] = []
-            vals: List[Union[str, int, float, None]] = []
 
+            cols: List[str] = []
+            vals: List[Union[str, int, float, bytes, None]] = []
 
             for column, value in args:
-                if not column in [i["name"] for i in self.tables[table]["columns"]]:
+                if column not in [i["name"] for i in self.tables[table]["columns"]]:
                     raise ColumnNotFound(f"No such column '{column}'.")
-                
-                
+
                 ctype = await self._get_type(table, column)
                 if ctype is None:
                     raise AioEasySqliteError(f"Could not determine type for column '{column}'.")
 
                 if isinstance(value, str) and self.types[ctype] in [int, float] and not all([i.isdigit() for i in value]):
                     raise InvalidValueConversion(f"Could not convert value '{value}' (str) to int or float for column '{column}'.")
-                elif not (isinstance(value, int) or isinstance(value, float) or isinstance(value, str) or value is None):
+                elif isinstance(value, bytes) and not self.types[ctype] is bytes:
+                    raise InvalidValueConversion(f"Could not convert value '{value}' (bytes) to int, float or str for column '{column}'.")
+                elif self.types[ctype] is bytes and not isinstance(value, bytes):
+                    try:
+                        value = value.encode()
+                    except UnicodeEncodeError:
+                        raise EncodeError(f"Could not convert value '{value}' to bytes automatically for column '{column}'.")
+                elif not (isinstance(value, int) or isinstance(value, float) or isinstance(value, str) or isinstance(value, bytes) or value is None):
                     raise UnsupportedValueType(f"Type of value '{value}' is unsupported. Supported types: int, float, str, None")
-                
+
                 cols.append(column)
                 vals.append(value)
-            
+
             if len(cols) > len(set(cols)):
                 raise DuplicateColumnInArgs(f"Trying to add multiple values to same column.")
-            
+
             items = await self.get_table(table)
             pk_col = await self._get_pk(table)
             notnull_cols = await self._get_nn(table)
@@ -504,65 +436,64 @@ class db:
                     if value is None:
                         raise NotNullConstraintViolation(f"Trying to insert 'NULL' value(-s) to 'NOT NULL' column {column}.")
 
-            vals_sql = ["?" for _ in range(len(vals))] # Avoiding sql injections :)))
+            vals_sql = ["?" for _ in range(len(vals))]  # Avoiding SQL injections
             cols_sql = ", ".join(f"\"{col}\"" for col in cols)
             values_sql = ", ".join(vals_sql)
 
             sql = f"INSERT INTO \"{table}\"({cols_sql}) VALUES ({values_sql})"
-            
+
             async with aiosqlite.connect(self.path_to_database) as conn:
                 async with conn.cursor() as cursor:
                     await cursor.execute(sql, tuple(vals))
                     await conn.commit()
-        
+
         except aiosqlite.Error as e:
-            raise AioEasySqliteError(f"Database error: {e}") 
-            
-           
-    async def edit_row(self, table: str, args: Tuple):
+            raise AioEasySqliteError(f"Database error: {e}")
 
+
+    async def edit_row(self, table: str, args: Tuple[str, Union[str, int, float, bytes, None], Union[str, int, float, bytes, None]]):
         """
-
         This function updates row with new value based on args.
 
         :param table: Table name.
         :type table: :obj:`str`
 
-        :param args: Column name, current value, new value in one tuple 
-        :type args:  :obj:`Tuple`
-
+        :param args: Column name, current value, new value in one tuple
+        :type args: :obj:`Tuple`
         :return: None
-
         """
-
         try:
             if not os.path.exists(self.path_to_database):
                 raise PathNotFound(f"No such path: '{self.path_to_database}'.")
-            
-            if not table in self.tables:
+
+            if table not in self.tables:
                 raise TableNotFound(f"No such table '{table}'.")
 
             if not isinstance(args, tuple) or len(args) != 3:
-                raise InvalidArgsType(f"Incorrect type of args. Must be not empty tuple.")
-        
+                raise InvalidArgsType(f"Incorrect type of args. Must be a non-empty tuple.")
 
             column, old_value, new_value = args
 
-            if not column in [i["name"] for i in self.tables[table]["columns"]]:
+            if column not in [i["name"] for i in self.tables[table]["columns"]]:
                 raise ColumnNotFound(f"No such column '{column}'.")
-                
-            
+
             ctype = await self._get_type(table, column)
 
             if ctype is None:
-                    raise AioEasySqliteError(f"Could not determine type for column '{column}'.")
+                raise AioEasySqliteError(f"Could not determine type for column '{column}'.")
 
-            if isinstance(new_value, str) and self.types[ctype] in [int, float] and not all([i.isdigit() for i in new_value]):
-                raise InvalidValueConversion(f"Could not convert value '{new_value}' (str) to int or float for column '{column}'.")
+            if isinstance(old_value, str) and self.types[ctype] in [int, float] and not all([i.isdigit() for i in old_value]):
+                raise InvalidValueConversion(f"Could not convert value '{old_value}' (str) to int or float for column '{column}'.")
+            elif isinstance(old_value, bytes) and not self.types[ctype] is bytes:
+                raise InvalidValueConversion(f"Could not convert value '{old_value}' (bytes) to int, float or str for column '{column}'.")
+            elif self.types[ctype] is bytes and not isinstance(old_value, bytes):
+                try:
+                    old_value = old_value.encode()
+                except UnicodeEncodeError:
+                    raise EncodeError(f"Could not convert value '{old_value}' to bytes automatically for column '{column}'.")
+            elif not (isinstance(old_value, int) or isinstance(old_value, float) or isinstance(old_value, str) or isinstance(old_value, bytes) or old_value is None):
+                raise UnsupportedValueType(f"Type of value '{old_value}' is unsupported. Supported types: int, float, str, None")
 
-            elif not (isinstance(new_value, int) or isinstance(new_value, float) or isinstance(new_value, str) or new_value is None):
-                raise UnsupportedValueType(f"Type of new_value '{new_value}' is unsupported. Supported types: int, float, str, None")
-            
             items = await self.get_table(table)
             pk_col = await self._get_pk(table)
             notnull_cols = await self._get_nn(table)
@@ -582,22 +513,19 @@ class db:
                 if new_value is None:
                     raise NotNullConstraintViolation(f"Trying to insert 'NULL' value to 'NOT NULL' column '{column}'.")
 
-
             sql = f"UPDATE \"{table}\" SET \"{column}\" = ? WHERE rowid = (SELECT rowid FROM \"{table}\" WHERE \"{column}\" = ? LIMIT 1)"
-                        
+
             async with aiosqlite.connect(self.path_to_database) as conn:
                 async with conn.cursor() as cursor:
                     await cursor.execute(sql, (new_value, old_value))
                     await conn.commit()
-        
+
         except aiosqlite.Error as e:
-            raise AioEasySqliteError(f"Database error: {e}") 
-            
-        
-    async def get_row(self, table: str, arg: tuple = None, index: int = None) -> Dict | None:
+            raise AioEasySqliteError(f"Database error: {e}")
 
+
+    async def get_row(self, table: str, arg: Tuple[str, Union[str, int, float, bytes, None]] = None, index: int = None) -> Union[Dict, None]:
         """
-
         This function returns first found row based on arg or row based on index.
 
         :param table: Table name.
@@ -611,28 +539,26 @@ class db:
 
         :return: Row as dict, where keys are columns and values are names or None
         :rtype: :obj:`Dict | None`
-
         """
-
         try:
             if not os.path.exists(self.path_to_database):
                 raise PathNotFound(f"No such path: '{self.path_to_database}'.")
 
-            if not table in self.tables:
+            if table not in self.tables:
                 raise TableNotFound(f"No such table '{table}'.")
-            
-            if not arg and not index:
+
+            if not arg and index is None:
                 raise MissingRequiredArgument(f"At least one (arg or index) must be provided for method 'get_row'.")
-            
-            result: Dict | None = None
-            
+
+            result: Union[Dict, None] = None
+
             if arg and not index:
                 if not arg[0] in [i["name"] for i in self.tables[table]["columns"]]:
                     raise ColumnNotFound(f"No such column '{arg[0]}'.")
                 
                 if not isinstance(arg, tuple) or len(arg) != 2:
                     raise InvalidArgsType(f"Incorrect type of args. Must be not empty tuple.")
-                
+
                 sql = f"SELECT * FROM \"{table}\" WHERE \"{arg[0]}\" = ? LIMIT 1"
 
                 async with aiosqlite.connect(self.path_to_database) as conn:
@@ -664,15 +590,13 @@ class db:
                 return table_info[index]
 
             return None
-        
+
         except aiosqlite.Error as e:
-            raise AioEasySqliteError(f"Database error: {e}") 
-            
-             
-    async def delete_row(self, table: str, arg: Tuple):
+            raise AioEasySqliteError(f"Database error: {e}")
 
+
+    async def delete_row(self, table: str, arg: Tuple[str, Union[str, int, float, bytes, None]]):
         """
-
         This function deletes first found row based on arg.
 
         :param table: Table name.
@@ -682,33 +606,32 @@ class db:
         :type arg: :obj:`tuple`
 
         :return: None
-
         """
-        
         try:
             if not os.path.exists(self.path_to_database):
                 raise PathNotFound(f"No such path: '{self.path_to_database}'.")
-            
-            if not table in self.tables:
+
+            if table not in self.tables:
                 raise TableNotFound(f"No such table '{table}'.")
 
             if not isinstance(arg, tuple) or len(arg) != 2:
                 raise InvalidArgsType(f"Incorrect type of args. Must be not empty tuple.")
-        
+
             column, value = arg
 
             if not column in [i["name"] for i in self.tables[table]["columns"]]:
                 raise ColumnNotFound(f"No such column '{column}'.")
-            
+
             sql = f"DELETE FROM \"{table}\" WHERE \"{column}\" = ?"
 
             async with aiosqlite.connect(self.path_to_database) as conn:
                 async with conn.cursor() as cursor:
                     await cursor.execute(sql, (value,))
                     await conn.commit()
-        
+
         except aiosqlite.Error as e:
-            raise AioEasySqliteError(f"Database error: {e}") 
+            raise AioEasySqliteError(f"Database error: {e}")
+
             
 
     def __dict__(self) -> Dict:
@@ -728,13 +651,9 @@ class db:
 
 
     async def _remove_column(self, table: str, column: str):
-        
         """
-        
         :meta: Private
-        
         """
-        
         try:
             if not os.path.exists(self.path_to_database):
                 raise PathNotFound(f"No such path: '{self.path_to_database}'.")
@@ -770,18 +689,13 @@ class db:
 
         except aiosqlite.Error as e:
             raise AioEasySqliteError(f"Database error: {e}")
-
         except Exception as e:
             raise AioEasySqliteError(f"Unexpected error occurred: {e}")
 
 
-
-    async def _get_pk(self, table: str) -> str | None:
-
+    async def _get_pk(self, table: str) -> Union[str, None]:
         """
-
         :meta: Private
-
         """
         try:
             if not os.path.exists(self.path_to_database):
@@ -798,19 +712,15 @@ class db:
                         return row[1]
             return None
         except aiosqlite.Error as e:
-            raise AioEasySqliteError(f"Database error: {e}") 
+            raise AioEasySqliteError(f"Database error: {e}")
         except Exception as e:
             raise AioEasySqliteError(f"Error in _get_pk method: {e}")
 
 
-    async def _get_type(self, table: str, column: str) -> str | None:
-
+    async def _get_type(self, table: str, column: str) -> Union[str, None]:
         """
-
         :meta: Private
-
         """
-
         try:
             if not os.path.exists(self.path_to_database):
                 raise PathNotFound(f"No such path: '{self.path_to_database}'.")
@@ -826,19 +736,15 @@ class db:
                         return row[2]
             return None
         except aiosqlite.Error as e:
-            raise AioEasySqliteError(f"Database error: {e}") 
+            raise AioEasySqliteError(f"Database error: {e}")
         except Exception as e:
             raise AioEasySqliteError(f"Error in _get_type method: {e}")
 
 
-    async def _get_nn(self, table: str) -> List[str] | None:
-
+    async def _get_nn(self, table: str) -> Union[List[str], None]:
         """
-
         :meta: Private
-
         """
-
         try:
             if not os.path.exists(self.path_to_database):
                 raise PathNotFound(f"No such path: '{self.path_to_database}'.")
@@ -860,14 +766,10 @@ class db:
             print(f"Error in _get_nn method: {e}")
 
 
-    async def _get_uq(self, table: str) -> List[str] | None:
-        
+    async def _get_uq(self, table: str) -> Union[List[str], None]:
         """
-
         :meta: Private
-        
         """
-
         try:
             result = []
 
