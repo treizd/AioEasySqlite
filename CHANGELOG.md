@@ -4,12 +4,14 @@
 ### Added
 - Column type 'BLOB' (class bytes)
 - New exception -> EncodeError
+- CHANGELOG.md
 
 ### Fixed
 - Some annotations bugs
 - edit_table inappropriate name check
 - Other small issues
 - Copyright text
+- README.MD
 
 ### Updated
 - Annotations. Now project supports Python of 3.5 or higher version
