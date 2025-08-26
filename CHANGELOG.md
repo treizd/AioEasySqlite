@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.0.5] - 2025-08-19
+## [0.0.5] - 2025-08-26
 ### Added
 - Column type 'BLOB' (class bytes)
 - New exception -> EncodeError
