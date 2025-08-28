@@ -1,0 +1,14 @@
+Publushing to PyPi:
+1) Go to your project's directory
+2) Open CMD
+3) ```python -m build```
+4) ```twine upload dist/*```
+5) Enter your token, wait and you're good to go
+
+
+Publishing to GitHub:
+1) Go to your project's directory
+2) Open CMD
+3) ```git add .```
+4) ```git commit -m "Commit info"```
+5) ```git push origin master``` or other branch name, wait and you're good to go

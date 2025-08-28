@@ -11,8 +11,19 @@ import os
 import json
 import string
 import aiosqlite
+from functools import wraps
 from typing import List, Tuple, Dict, Union
 from .exceptions import *
+
+
+def db_exists(f):
+    @wraps(f)
+    async def wrapper(self, *args, **kwargs):
+        if not os.path.exists(self.path_to_database):
+            raise PathNotFound(f"No such path: '{self.path_to_database}'.")
+        return await f(*args, **kwargs)
+    return wrapper
+
 
 class db:
 
@@ -39,6 +50,7 @@ class db:
             "BLOB": bytes
         }
 
+    @db_exists
     async def clear_database(self):
         """
         Clears the entire database by deleting the file and recreating it.
@@ -52,6 +64,7 @@ class db:
         except aiosqlite.Error as e:
             raise AioEasySqliteError(f"Database error: {e}")
 
+    @db_exists
     async def new_table(self, name: str):
         """
         This function just saves the name for the new table. It does not create one yet.
@@ -62,9 +75,6 @@ class db:
         :return: None
         """
         available_chars = string.ascii_letters + string.digits + '_'
-
-        if not os.path.exists(self.path_to_database):
-            raise PathNotFound(f"No such path: '{self.path_to_database}'.")
 
         if name.startswith("sqlite_"):
             raise InvalidTableName(f"Table name '{name}' can not start with 'sqlite_'.")
@@ -77,6 +87,7 @@ class db:
         
         self.tables[name] = {"columns": []}
 
+    @db_exists
     async def get_table(self, table: str) -> Union[List[Dict], None]:
         """
         This function returns all values in the table
@@ -88,9 +99,6 @@ class db:
         :rtype: :obj:`List[Dict] | None`
         """
         try:
-            if not os.path.exists(self.path_to_database):
-                raise PathNotFound(f"No such path: '{self.path_to_database}'.")
-
             if table not in self.tables:
                 raise TableNotFound(f"Table '{table}' does not exist")
 
@@ -109,7 +117,8 @@ class db:
         
         except aiosqlite.Error as e:
             raise AioEasySqliteError(f"Database error: {e}")
-
+        
+    @db_exists
     async def edit_table(self, table: str, new_name: str):
         """
         This function edits the name of selected table.
@@ -124,9 +133,6 @@ class db:
         """
         try:
             available_chars = string.ascii_letters + string.digits + '_'
-
-            if not os.path.exists(self.path_to_database):
-                raise PathNotFound(f"No such path: '{self.path_to_database}'.")
 
             if not all([str(char) in available_chars for char in new_name]):
                 raise InvalidCharacterInName(f"New table name '{new_name}' has inappropriate characters. Appropriate characters are: {available_chars}.")
@@ -150,6 +156,7 @@ class db:
         except aiosqlite.Error as e:
             raise AioEasySqliteError(f"Database error: {e}")
 
+    @db_exists
     async def delete_table(self, table: str):
         """
         This function deletes table.
@@ -160,9 +167,6 @@ class db:
         :return: None
         """
         try:
-            if not os.path.exists(self.path_to_database):
-                raise PathNotFound(f"No such path: '{self.path_to_database}'.")
-
             if table not in self.tables:
                 raise TableNotFound(f"Table with name '{table}' does not exist.")
             
@@ -177,6 +181,7 @@ class db:
         except aiosqlite.Error as e:
             raise AioEasySqliteError(f"Database error: {e}")
 
+    @db_exists
     async def add_column(self, table: str, name: str, type: str, primary_key: bool = False, autoincrement: bool = False, not_null: bool = False, unique: bool = False, default: Union[str, int, float, None] = None):
         """
         This function adds column to a table in database.
@@ -209,9 +214,6 @@ class db:
         """
         try:
             available_chars = string.ascii_letters + string.digits + '_'
-
-            if not os.path.exists(self.path_to_database):
-                raise PathNotFound(f"No such path: '{self.path_to_database}'.")
 
             if not all([str(char) in available_chars for char in name]):
                 raise InvalidCharacterInName(f"Column name '{name}' has inappropriate characters. Appropriate characters are: {available_chars}.")
@@ -269,6 +271,7 @@ class db:
         except aiosqlite.Error as e:
             raise AioEasySqliteError(f"Database error: {e}")
 
+    @db_exists
     async def get_column(self, table: str, column: str, type: str) -> Union[List[Tuple], None]:
         """
         This function returns whole column.
@@ -286,9 +289,6 @@ class db:
         :rtype: :obj:`List[Tuple] | None`
         """
         try:
-            if not os.path.exists(self.path_to_database):
-                raise PathNotFound(f"No such path: '{self.path_to_database}'.")
-
             if not table in self.tables:
                 raise TableNotFound(f"No such table '{table}'.")
             
@@ -333,7 +333,8 @@ class db:
 
         except aiosqlite.Error as e:
             raise AioEasySqliteError(f"Database error: {e}")
-            
+          
+    @db_exists  
     async def delete_column(self, table: str, column: str):
         """
         This function deletes column from table
@@ -347,9 +348,6 @@ class db:
         :return: None
         """
         try:
-            if not os.path.exists(self.path_to_database):
-                raise PathNotFound(f"No such path: '{self.path_to_database}'.")
-
             if not table in self.tables:
                 raise TableNotFound(f"No such table '{table}'.")
             
@@ -361,7 +359,7 @@ class db:
         except Exception as e:
             raise AioEasySqliteError(f"Unknown error occured: {e}")
         
-        
+    @db_exists
     async def add_row(self, table: str, args: List[Tuple[str, Union[str, int, float, bytes, None]]]):
         """
         This function adds new row to database table
@@ -373,9 +371,6 @@ class db:
         :type args: :obj:`List[Tuple]`
         """
         try:
-            if not os.path.exists(self.path_to_database):
-                raise PathNotFound(f"No such path: '{self.path_to_database}'.")
-
             if table not in self.tables:
                 raise TableNotFound(f"No such table '{table}'.")
 
@@ -450,7 +445,7 @@ class db:
         except aiosqlite.Error as e:
             raise AioEasySqliteError(f"Database error: {e}")
 
-
+    @db_exists
     async def edit_row(self, table: str, args: Tuple[str, Union[str, int, float, bytes, None], Union[str, int, float, bytes, None]]):
         """
         This function updates row with new value based on args.
@@ -463,9 +458,6 @@ class db:
         :return: None
         """
         try:
-            if not os.path.exists(self.path_to_database):
-                raise PathNotFound(f"No such path: '{self.path_to_database}'.")
-
             if table not in self.tables:
                 raise TableNotFound(f"No such table '{table}'.")
 
@@ -523,7 +515,7 @@ class db:
         except aiosqlite.Error as e:
             raise AioEasySqliteError(f"Database error: {e}")
 
-
+    @db_exists
     async def get_row(self, table: str, arg: Tuple[str, Union[str, int, float, bytes, None]] = None, index: int = None) -> Union[Dict, None]:
         """
         This function returns first found row based on arg or row based on index.
@@ -541,9 +533,6 @@ class db:
         :rtype: :obj:`Dict | None`
         """
         try:
-            if not os.path.exists(self.path_to_database):
-                raise PathNotFound(f"No such path: '{self.path_to_database}'.")
-
             if table not in self.tables:
                 raise TableNotFound(f"No such table '{table}'.")
 
@@ -594,7 +583,7 @@ class db:
         except aiosqlite.Error as e:
             raise AioEasySqliteError(f"Database error: {e}")
 
-
+    @db_exists
     async def delete_row(self, table: str, arg: Tuple[str, Union[str, int, float, bytes, None]]):
         """
         This function deletes first found row based on arg.
@@ -608,9 +597,6 @@ class db:
         :return: None
         """
         try:
-            if not os.path.exists(self.path_to_database):
-                raise PathNotFound(f"No such path: '{self.path_to_database}'.")
-
             if table not in self.tables:
                 raise TableNotFound(f"No such table '{table}'.")
 
@@ -649,15 +635,12 @@ class db:
     def __repr__(self) -> str:
         return str(self)
 
-
+    @db_exists
     async def _remove_column(self, table: str, column: str):
         """
         :meta: Private
         """
         try:
-            if not os.path.exists(self.path_to_database):
-                raise PathNotFound(f"No such path: '{self.path_to_database}'.")
-
             async with aiosqlite.connect(self.path_to_database) as conn:
                 async with conn.cursor() as cursor:
                     await cursor.execute(f"PRAGMA table_info(\"{table}\")")
@@ -692,15 +675,12 @@ class db:
         except Exception as e:
             raise AioEasySqliteError(f"Unexpected error occurred: {e}")
 
-
+    @db_exists
     async def _get_pk(self, table: str) -> Union[str, None]:
         """
         :meta: Private
         """
         try:
-            if not os.path.exists(self.path_to_database):
-                raise PathNotFound(f"No such path: '{self.path_to_database}'.")
-
             async with aiosqlite.connect(self.path_to_database) as conn:
                 async with conn.cursor() as cursor:
                     await cursor.execute(f"PRAGMA table_info(\"{table}\")")
@@ -716,15 +696,12 @@ class db:
         except Exception as e:
             raise AioEasySqliteError(f"Error in _get_pk method: {e}")
 
-
+    @db_exists
     async def _get_type(self, table: str, column: str) -> Union[str, None]:
         """
         :meta: Private
         """
         try:
-            if not os.path.exists(self.path_to_database):
-                raise PathNotFound(f"No such path: '{self.path_to_database}'.")
-
             async with aiosqlite.connect(self.path_to_database) as conn:
                 async with conn.cursor() as cursor:
                     await cursor.execute(f"PRAGMA table_info(\"{table}\")")
@@ -740,15 +717,12 @@ class db:
         except Exception as e:
             raise AioEasySqliteError(f"Error in _get_type method: {e}")
 
-
+    @db_exists
     async def _get_nn(self, table: str) -> Union[List[str], None]:
         """
         :meta: Private
         """
         try:
-            if not os.path.exists(self.path_to_database):
-                raise PathNotFound(f"No such path: '{self.path_to_database}'.")
-
             async with aiosqlite.connect(self.path_to_database) as conn:
                 async with conn.cursor() as cursor:
                     await cursor.execute(f"PRAGMA table_info(\"{table}\")")
@@ -764,7 +738,6 @@ class db:
             return None
         except Exception as e:
             print(f"Error in _get_nn method: {e}")
-
 
     async def _get_uq(self, table: str) -> Union[List[str], None]:
         """
