@@ -1,12 +1,9 @@
 # Changelog
 
-<<<<<<< HEAD
 ## [0.0.6] - 2025-08-28
 ### Updated
 - Added @db_exists decorator instead of repeating same code in every function
 
-=======
->>>>>>> c62751e5bec1c731bd2f62ef3195978ae41ec847
 ## [0.0.5] - 2025-08-26
 ### Added
 - Column type 'BLOB' (class bytes)
