@@ -8,5 +8,5 @@
 
 
 
-from .exceptions import *
+from .exceptions import AioEasySqliteError, EncodeError, PathNotFound, InvalidDatabasePath, InvalidTableName, InvalidCharacterInName, TableAlreadyExists, TableNotFound, UnknownColumnType, ColumnAlreadyExists, InvalidAutoincrementUsage, InvalidDefaultValue, ColumnNotFound, InvalidArgsType, InvalidArgsLength, InvalidValueConversion, UnsupportedValueType, DuplicateColumnInArgs, UniqueConstraintViolation, NotNullConstraintViolation, MissingRequiredArgument, InvalidIndexType, InvalidIndexValue, IndexOutOfRange, InvalidType
 from .db import db

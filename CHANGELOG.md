@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.0.0] - 2025-08-29
+### Updated
+- dir method
+- exceptions import
+
 ## [0.0.7] - 2025-08-29
 ### Fixed
 - Now you can retrieve existing old data from database using load_data method

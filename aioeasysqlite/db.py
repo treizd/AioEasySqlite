@@ -14,7 +14,8 @@ import string
 import aiosqlite
 from functools import wraps
 from typing import List, Tuple, Dict, Union, Any
-from .exceptions import *
+from .exceptions import AioEasySqliteError, EncodeError, PathNotFound, InvalidDatabasePath, InvalidTableName, InvalidCharacterInName, TableAlreadyExists, TableNotFound, UnknownColumnType, ColumnAlreadyExists, InvalidAutoincrementUsage, InvalidDefaultValue, ColumnNotFound, InvalidArgsType, InvalidArgsLength, InvalidValueConversion, UnsupportedValueType, DuplicateColumnInArgs, UniqueConstraintViolation, NotNullConstraintViolation, MissingRequiredArgument, InvalidIndexType, InvalidIndexValue, IndexOutOfRange, InvalidType
+
 
 
 def db_exists(f):
@@ -35,6 +36,9 @@ class db:
     :type path_to_database: :obj:`str`
     """
 
+    def __dir__(self):
+        return ["db", "exceptions"]
+    
     def __init__(self, path_to_database: str):
         if not path_to_database.endswith(".db"):
             raise InvalidDatabasePath(f"Given path '{path_to_database}' does not exists or belongs not to .db file.")

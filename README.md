@@ -48,6 +48,9 @@ if __name__ == "__main__":
     asyncio.run(main())
 ```
 
+## IMPORTANT NOTE!
+- To retrieve old data from database use load_data method.
+
 # Example usage (full)
 ``` python
 import asyncio
