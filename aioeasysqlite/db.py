@@ -332,7 +332,7 @@ class db:
                     rows = await cursor.fetchall()
 
                     if rows:
-                        if primary_key:
+                        if primary_key and type == "PK":
                             return rows
                         else:
                             items = [i[0] for i in rows]

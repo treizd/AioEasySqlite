@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.0.1] - 2025-08-29
+### Fixed
+- get_column method enumeration
+
 ## [1.0.0] - 2025-08-29
 ### Updated
 - dir method
