@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.0.7] - 2025-08-29
+### Fixed
+- Now you can retrieve existing old data from database using load_data method
+
+### Updated
+- Updated tests
+
 ## [0.0.6] - 2025-08-28
 ### Updated
 - Added @db_exists decorator instead of repeating same code in every function

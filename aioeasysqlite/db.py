@@ -8,11 +8,12 @@
 
 
 import os
+import re
 import json
 import string
 import aiosqlite
 from functools import wraps
-from typing import List, Tuple, Dict, Union
+from typing import List, Tuple, Dict, Union, Any
 from .exceptions import *
 
 
@@ -21,7 +22,7 @@ def db_exists(f):
     async def wrapper(self, *args, **kwargs):
         if not os.path.exists(self.path_to_database):
             raise PathNotFound(f"No such path: '{self.path_to_database}'.")
-        return await f(*args, **kwargs)
+        return await f(self, *args, **kwargs)
     return wrapper
 
 
@@ -42,13 +43,22 @@ class db:
             raise PathNotFound(f"No such path: '{path_to_database}'.")
 
         self.path_to_database = path_to_database
-        self.tables: Dict[str, Dict] = {}
+        
+        self.tables = {}
         self.types: Dict[str, type] = {
             "INTEGER": int,
             "REAL": float,
             "TEXT": str,
             "BLOB": bytes
         }
+    
+    @db_exists
+    async def load_data(self):
+        """
+        Loads old data from database
+        """
+        self.tables =  await self._retrieveData()
+    
 
     @db_exists
     async def clear_database(self):
@@ -103,7 +113,7 @@ class db:
                 raise TableNotFound(f"Table '{table}' does not exist")
 
             if len(self.tables[table]["columns"]) == 0:
-                return None
+                return []
 
             sql = f"SELECT * FROM {table}"
             async with aiosqlite.connect(self.path_to_database) as conn:
@@ -415,7 +425,7 @@ class db:
             notnull_cols = await self._get_nn(table)
             unique_cols = await self._get_uq(table)
 
-            for column in cols:
+            for column, value in args:
                 column_values = await self.get_column(table, column, "IND")
                 if column_values:
                     itms = [i[1] for i in column_values]
@@ -423,8 +433,7 @@ class db:
                     itms = []
 
                 if column == pk_col or (unique_cols and column in unique_cols):
-                    combined_values = itms + vals
-                    if len(combined_values) > len(set(combined_values)):
+                    if value in itms:
                         raise UniqueConstraintViolation(f"Trying to insert already existing value(-s) to unique column '{column}'.")
 
                 if notnull_cols and column in notnull_cols:
@@ -497,8 +506,7 @@ class db:
             else:
                 itms = []
             if column == pk_col or (unique_cols and column in unique_cols):
-                combined_values = itms + [new_value]
-                if len(combined_values) > len(set(combined_values)):
+                if new_value in itms and new_value != old_value:
                     raise UniqueConstraintViolation(f"Trying to insert already existing value to unique column '{column}'.")
 
             if notnull_cols and column in notnull_cols:
@@ -570,7 +578,7 @@ class db:
                     raise InvalidIndexValue(f"Index must be greater or equal zero.")
 
                 table_info = await self.get_table(table)
-                if table_info is None:
+                if table_info is None or len(table_info) == 0:
                     return None
 
                 if index >= len(table_info):
@@ -731,13 +739,15 @@ class db:
             result = []
             if rows:
                 for row in rows:
-                    if row[3] == 0:
+                    if row[3] == 1: # Corrected: 0 means nullable, 1 means not nullable
                         result.append(row[1])
             if result:
                 return result
             return None
+        except aiosqlite.Error as e:
+            raise AioEasySqliteError(f"Database error: {e}")
         except Exception as e:
-            print(f"Error in _get_nn method: {e}")
+            raise AioEasySqliteError(f"Error in _get_nn method: {e}")
 
     async def _get_uq(self, table: str) -> Union[List[str], None]:
         """
@@ -753,4 +763,67 @@ class db:
                 return result
             return None
         except Exception as e:
-            print(f"Error in _get_uq method: {e}")
+            raise AioEasySqliteError(f"Error in _get_uq method: {e}")
+    
+    async def _retrieveData(self) -> Dict[str, Dict[str, Any]]:
+        """
+        :meta: Private
+        """
+        result: Dict[str, Dict[str, Any]] = {}
+        try:
+            async with aiosqlite.connect(self.path_to_database) as conn:
+                async with conn.cursor() as cursor:
+                    await cursor.execute("SELECT name FROM sqlite_master WHERE type='table';")
+                    table_names = [row[0] for row in await cursor.fetchall()]
+
+                    for table_name in table_names:
+                        result[table_name] = {"columns": []}
+
+                        await cursor.execute("SELECT sql FROM sqlite_master WHERE type='table' AND name=?", (table_name,))
+                        create_table_statement = await cursor.fetchone()
+                        create_table_sql = create_table_statement[0] if create_table_statement else ""
+
+                        await cursor.execute(f"PRAGMA table_info('{table_name}')")
+                        columns_info = await cursor.fetchall()
+
+                        for column in columns_info:
+                            column_name = column[1]
+                            
+                            is_unique = await self._is_column_unique(table_name, column_name)
+
+                            column_data = {
+                                "name": column_name,
+                                "type": column[2],
+                                "is_unique": is_unique,
+                            }
+                            result[table_name]["columns"].append(column_data)                   
+        except aiosqlite.Error as e:
+            raise AioEasySqliteError(f"Error in _retrieveData method: {e}")
+
+        return result
+
+
+    async def _is_column_unique(self, table_name: str, column_name: str) -> bool:
+        """
+        :meta: Private
+        """
+        try:
+            async with aiosqlite.connect(self.path_to_database) as conn:
+                async with conn.cursor() as cursor:
+                    await cursor.execute(f"PRAGMA index_list('{table_name}');")
+                    indexes = await cursor.fetchall()
+
+                    for index in indexes:
+                        index_name = index[1]
+                        is_unique = index[2]
+
+                        if is_unique:
+                            await cursor.execute(f"PRAGMA index_info('{index_name}');")
+                            index_info = await cursor.fetchall()
+
+                            for column_info in index_info:
+                                if column_info[2] == column_name:
+                                    return True
+            return False
+        except Exception as e:
+            print(f"Error in _is_column_unique method: {e}")
