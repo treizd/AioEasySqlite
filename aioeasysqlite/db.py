@@ -72,6 +72,7 @@ class db:
         try:
             if os.path.exists(self.path_to_database):
                 os.remove(self.path_to_database)
+            self.tables = {}
             async with aiosqlite.connect(self.path_to_database) as conn:
                 await conn.commit()
                 print("Database was cleared.")
@@ -459,7 +460,7 @@ class db:
             raise AioEasySqliteError(f"Database error: {e}")
 
     @db_exists
-    async def edit_row(self, table: str, args: Tuple[str, Union[str, int, float, bytes, None], Union[str, int, float, bytes, None]]):
+    async def edit_row(self, table: str, find_args: Tuple[str, Union[str, int, float, bytes, None]], edit_args: Tuple[str, Union[str, int, float, bytes, None]]):
         """
         This function updates row with new value based on args.
 
@@ -474,54 +475,62 @@ class db:
             if table not in self.tables:
                 raise TableNotFound(f"No such table '{table}'.")
 
-            if not isinstance(args, tuple) or len(args) != 3:
-                raise InvalidArgsType(f"Incorrect type of args. Must be a non-empty tuple.")
+            if not isinstance(find_args, tuple) or len(find_args) != 2:
+                raise InvalidArgsType(f"Incorrect type of find_args. Must be a non-empty tuple.")
+            
+            if not isinstance(edit_args, tuple) or len(edit_args) != 2:
+                raise InvalidArgsType(f"Incorrect type of edit_args. Must be a non-empty tuple.")
 
-            column, old_value, new_value = args
+            column_edit, new_value = edit_args
+            column_find, current_value = find_args
+            
 
-            if column not in [i["name"] for i in self.tables[table]["columns"]]:
-                raise ColumnNotFound(f"No such column '{column}'.")
+            if column_edit not in [i["name"] for i in self.tables[table]["columns"]]:
+                raise ColumnNotFound(f"No such column '{column_edit}'.")
 
-            ctype = await self._get_type(table, column)
+            if column_find not in [i["name"] for i in self.tables[table]["columns"]]:
+                raise ColumnNotFound(f"No such column '{column_find}'.")
+
+            ctype = await self._get_type(table, column_edit)
 
             if ctype is None:
-                raise AioEasySqliteError(f"Could not determine type for column '{column}'.")
+                raise AioEasySqliteError(f"Could not determine type for column '{column_edit}'.")
 
-            if isinstance(old_value, str) and self.types[ctype] in [int, float] and not all([i.isdigit() for i in old_value]):
-                raise InvalidValueConversion(f"Could not convert value '{old_value}' (str) to int or float for column '{column}'.")
-            elif isinstance(old_value, bytes) and not self.types[ctype] is bytes:
-                raise InvalidValueConversion(f"Could not convert value '{old_value}' (bytes) to int, float or str for column '{column}'.")
-            elif self.types[ctype] is bytes and not isinstance(old_value, bytes):
+            if isinstance(new_value, str) and self.types[ctype] in [int, float] and not all([i.isdigit() for i in new_value]):
+                raise InvalidValueConversion(f"Could not convert value '{new_value}' (str) to int or float for column '{column_edit}'.")
+            elif isinstance(new_value, bytes) and not self.types[ctype] is bytes:
+                raise InvalidValueConversion(f"Could not convert value '{new_value}' (bytes) to int, float or str for column '{column_edit}'.")
+            elif self.types[ctype] is bytes and not isinstance(new_value, bytes):
                 try:
-                    old_value = old_value.encode()
+                    new_value = new_value.encode()
                 except UnicodeEncodeError:
-                    raise EncodeError(f"Could not convert value '{old_value}' to bytes automatically for column '{column}'.")
-            elif not (isinstance(old_value, int) or isinstance(old_value, float) or isinstance(old_value, str) or isinstance(old_value, bytes) or old_value is None):
-                raise UnsupportedValueType(f"Type of value '{old_value}' is unsupported. Supported types: int, float, str, None")
+                    raise EncodeError(f"Could not convert value '{new_value}' to bytes automatically for column '{column_edit}'.")
+            elif not (isinstance(new_value, int) or isinstance(new_value, float) or isinstance(new_value, str) or isinstance(new_value, bytes) or new_value is None):
+                raise UnsupportedValueType(f"Type of value '{new_value}' is unsupported. Supported types: int, float, str, None")
 
             items = await self.get_table(table)
             pk_col = await self._get_pk(table)
             notnull_cols = await self._get_nn(table)
             unique_cols = await self._get_uq(table)
 
-            column_values = await self.get_column(table, column, "IND")
+            column_values = await self.get_column(table, column_edit, "IND")
             if column_values:
                 itms = [i[1] for i in column_values]
             else:
                 itms = []
-            if column == pk_col or (unique_cols and column in unique_cols):
-                if new_value in itms and new_value != old_value:
-                    raise UniqueConstraintViolation(f"Trying to insert already existing value to unique column '{column}'.")
+            if column_edit == pk_col or (unique_cols and column_edit in unique_cols):
+                if new_value in itms and new_value != current_value:
+                    raise UniqueConstraintViolation(f"Trying to insert already existing value to unique column '{column_edit}'.")
 
-            if notnull_cols and column in notnull_cols:
+            if notnull_cols and column_edit in notnull_cols:
                 if new_value is None:
-                    raise NotNullConstraintViolation(f"Trying to insert 'NULL' value to 'NOT NULL' column '{column}'.")
+                    raise NotNullConstraintViolation(f"Trying to insert 'NULL' value to 'NOT NULL' column '{column_edit}'.")
 
-            sql = f"UPDATE \"{table}\" SET \"{column}\" = ? WHERE rowid = (SELECT rowid FROM \"{table}\" WHERE \"{column}\" = ? LIMIT 1)"
+            sql = f"UPDATE \"{table}\" SET \"{column_edit}\" = ? WHERE rowid = (SELECT rowid FROM \"{table}\" WHERE \"{column_find}\" = ? LIMIT 1)"
 
             async with aiosqlite.connect(self.path_to_database) as conn:
                 async with conn.cursor() as cursor:
-                    await cursor.execute(sql, (new_value, old_value))
+                    await cursor.execute(sql, (new_value, current_value))
                     await conn.commit()
 
         except aiosqlite.Error as e:

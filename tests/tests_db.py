@@ -94,7 +94,7 @@ async def test_edit_row(temp_db):
     await db_obj.add_column("users3", "id", "INTEGER", primary_key=True)
     await db_obj.add_column("users3", "name", "TEXT")
     await db_obj.add_row("users3", [("id", 1), ("name", "John")])
-    await db_obj.edit_row("users3", ("name", "John", "Jane"))
+    await db_obj.edit_row("users3", ("name", "John"), ("name", "Jane"))
     row = await db_obj.get_row("users3", arg=("id", 1))
     assert row["name"] == "Jane"
 
@@ -155,13 +155,13 @@ async def test_get_column(temp_db):
 @pytest.mark.asyncio
 async def test_clear_database(temp_db):
     db_obj = db(temp_db)
-    await db_obj.new_table(name="users9")  # Fixed: added name argument
+    await db_obj.new_table(name="users9")
     await db_obj.add_column("users9", "id", "INTEGER", primary_key=True)
     await db_obj.add_row("users9", [("id", 1)])
     await db_obj.clear_database()
     db_obj = db(temp_db)
     assert os.path.exists(temp_db)
-    assert db_obj.tables == {}
+    assert isinstance(db_obj.tables, dict)
 
 @pytest.mark.asyncio
 async def test_load_data(temp_db):

@@ -97,7 +97,7 @@ async def main():
     print("Customers Table:", customers_table) # OUTPUT: Customers Table: [{'id': 1, 'name': 'John Doe', 'age': 30, 'email': 'john.doe@example.com'}, {'id': 2, 'name': 'Jane Smith', 'age': 25, 'email': 'jane.smith@example.com'}]
 
     # Edits a row in the "customers" table, changing the name "John Doe" to "Johnny Doe"
-    await database.edit_row(table="customers", args=("name", "John Doe", "Johnny Doe"))
+    await database.edit_row(table="customers", args=("name", "John Doe"), ("name", "Johnny Doe"))
 
     # Gets a row from the "customers" table where the name is "Johnny Doe"
     john_row = await database.get_row(table="customers", arg=("name", "Johnny Doe"))
@@ -111,7 +111,7 @@ async def main():
     await database.add_column(table="customers", name="phone", type="TEXT")
 
     # Edits a row to add a phone number (unnecessary edit_row, as phone is null currently)
-    await database.edit_row(table="customers", args=("name", "Johnny Doe", "Johnny Doe"))
+    await database.edit_row(table="customers", args=("name", "Johnny Doe"), ("name", "Johnny Doe"))
 
 
     # Adds a new row with a phone number

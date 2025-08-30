@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.0.3] - 2025-08-30
+### Fixed
+- clear_database method
+
+### Updated
+- edit_row method
+- README.md example usages
+
 ## [1.0.2] - 2025-08-30
 ### Fixed
 - get_column method
