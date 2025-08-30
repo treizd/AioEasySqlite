@@ -320,7 +320,7 @@ class db:
             if not primary_key and type == "PK":
                 raise AioEasySqliteError(f"Can not use 'PK' type when primary key is not set.")
 
-            if primary_key:
+            if primary_key and type == "PK":
                 sql = f"SELECT \"{primary_key}\", \"{column}\" FROM \"{table}\""
             else:
                 sql = f"SELECT \"{column}\" FROM \"{table}\""
