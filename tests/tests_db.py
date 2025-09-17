@@ -176,7 +176,46 @@ async def test_load_data(temp_db):
     assert "users10" in db_obj2.tables
     assert len(db_obj2.tables["users10"]["columns"]) == 2
 
+@pytest.mark.asyncio
+async def test_keywords(temp_db):
+    db_obj = db(temp_db)
+    await db_obj.new_table(name="users11")
+    await db_obj.add_column("users11", "id", "INTEGER", primary_key=True)
+    await db_obj.add_column("users11", "balance", "REAL", default=0)
+    await db_obj.add_row("users11", [("id", 1), ("balance", 1)])
+    await db_obj.add_row("users11", [("id", 2)])
 
+    tables = await db_obj.get_table("users11")
+    assert tables[0]["balance"] == 1
+    assert tables[1]["balance"] == 0
+
+@pytest.mark.asyncio
+async def test_unique(temp_db):
+    db_obj = db(temp_db)
+    await db_obj.new_table(name="users12")
+    await db_obj.add_column("users12", "id", "INTEGER", unique=True)
+    await db_obj.add_row("users12", [("id", 1)])
+    
+    with pytest.raises(UniqueConstraintViolation):
+        await db_obj.add_row("users12", [("id", 1)])
+
+@pytest.mark.asyncio
+async def test_autoincr(temp_db):
+    db_obj = db(temp_db)
+    await db_obj.new_table(name="users13")
+    
+    with pytest.raises(InvalidAutoincrementUsage):
+        await db_obj.add_column("users13", "id", "INTEGER", autoincrement=True)
+    
+@pytest.mark.asyncio
+async def test_multiple_pks(temp_db):
+    db_obj = db(temp_db)
+    await db_obj.new_table(name="users14")
+    await db_obj.add_column("users14", "id", "INTEGER", primary_key=True)
+    
+    with pytest.raises(MultiplePrimaryKeys):
+        await db_obj.add_column("users14", "uid", "INTEGER", primary_key=True)
+  
 @pytest.mark.asyncio
 async def test_db_exists_decorator(temp_db):
     db_obj = db(temp_db)

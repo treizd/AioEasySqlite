@@ -125,5 +125,9 @@ class IndexOutOfRange(AioEasySqliteError):
     pass
 
 class InvalidType(AioEasySqliteError):
-    """Raised when type is invalid"""
+    """Raised when type is invalid."""
+    pass
+
+class MultiplePrimaryKeys(AioEasySqliteError):
+    """Raised when multiple primary keys column detected."""
     pass

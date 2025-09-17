@@ -14,7 +14,7 @@ import string
 import aiosqlite
 from functools import wraps
 from typing import List, Tuple, Dict, Union, Any
-from .exceptions import AioEasySqliteError, EncodeError, PathNotFound, InvalidDatabasePath, InvalidTableName, InvalidCharacterInName, TableAlreadyExists, TableNotFound, UnknownColumnType, ColumnAlreadyExists, InvalidAutoincrementUsage, InvalidDefaultValue, ColumnNotFound, InvalidArgsType, InvalidArgsLength, InvalidValueConversion, UnsupportedValueType, DuplicateColumnInArgs, UniqueConstraintViolation, NotNullConstraintViolation, MissingRequiredArgument, InvalidIndexType, InvalidIndexValue, IndexOutOfRange, InvalidType
+from .exceptions import AioEasySqliteError, EncodeError, PathNotFound, InvalidDatabasePath, InvalidTableName, InvalidCharacterInName, TableAlreadyExists, TableNotFound, UnknownColumnType, ColumnAlreadyExists, InvalidAutoincrementUsage, InvalidDefaultValue, ColumnNotFound, InvalidArgsType, InvalidArgsLength, InvalidValueConversion, UnsupportedValueType, DuplicateColumnInArgs, UniqueConstraintViolation, NotNullConstraintViolation, MissingRequiredArgument, InvalidIndexType, InvalidIndexValue, IndexOutOfRange, InvalidType, MultiplePrimaryKeys
 
 
 
@@ -246,27 +246,33 @@ class db:
 
             parameters: List[str] = []
 
-            if primary_key:
+            primary_key_col = await self._get_pk(table)
+            
+            if primary_key and not primary_key_col:
                 parameters.append("PRIMARY KEY")
+            
+            elif primary_key and primary_key_col:
+                raise MultiplePrimaryKeys("Can not add more than one 'primary key' columns.")
 
-            if autoincrement and type == "INTEGER":
+            if autoincrement and type == "INTEGER" and primary_key:
                 parameters.append("AUTOINCREMENT")
 
-            elif autoincrement and type != "INTEGER":
+            elif autoincrement and type != "INTEGER" and primary_key:
                 raise InvalidAutoincrementUsage("Can not use 'autoincrement' for non-integer column.")
 
+            elif autoincrement and not primary_key:
+                raise InvalidAutoincrementUsage("Can not use 'autoincrement' without using 'primary key'.")
+            
             if not_null:
                 parameters.append("NOT NULL")
 
             if unique:
                 parameters.append("UNIQUE")
 
-            default_value = None
             if default is not None:
                 if default == "NULL" and not_null:
                     raise InvalidDefaultValue("Can not set 'NULL' default value to 'NOT NULL' column.")
-                parameters.append("DEFAULT ?")
-                default_value = default
+                parameters.append(f"DEFAULT {default}")
 
             parameters_str = ' '.join(parameters)
 
@@ -277,10 +283,7 @@ class db:
                     else:
                         sql = f"ALTER TABLE \"{table}\" ADD COLUMN \"{name}\" {type} {parameters_str}"
 
-                    if default_value is not None:
-                        await cursor.execute(sql, (default_value,))
-                    else:
-                        await cursor.execute(sql)
+                    await cursor.execute(sql)
                     await conn.commit()
 
         except aiosqlite.Error as e:

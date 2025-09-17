@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.0.7] - 2025-09-17
+### Fixed
+- default keyword usage
+- multiple primary keys columns
+
+### Added
+- autoincrement + primary key usage check
+- Some new tests
+
 ## [1.0.3] - 2025-08-30
 ### Fixed
 - clear_database method
