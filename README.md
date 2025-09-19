@@ -8,10 +8,6 @@
     <b>Easier aiosqlite version</b>
     <br>
     Sorry, no documentation provided at the moment.
-    •
-    <a href="https://t.me/+4h_rZvpLwSA3NWIy">
-        Chat
-    </a>
 </p>
 
 ## AioEasySqlite
@@ -167,5 +163,4 @@ pip3 install aioeasysqlite
 
 ### Resources
 
-- Join the [official channel](https://t.me/opentracing) and stay tuned for news, updates and announcements.
-- Join the [official chat](https://t.me/+4h_rZvpLwSA3NWIy) to communicate with people.
+- No current resources provided :)
