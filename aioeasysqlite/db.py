@@ -13,6 +13,7 @@ import json
 import string
 import aiosqlite
 from functools import wraps
+from dataclasses import dataclass, asdict
 from typing import List, Tuple, Dict, Union, Any
 from .exceptions import AioEasySqliteError, EncodeError, PathNotFound, InvalidDatabasePath, InvalidTableName, InvalidCharacterInName, TableAlreadyExists, TableNotFound, UnknownColumnType, ColumnAlreadyExists, InvalidAutoincrementUsage, InvalidDefaultValue, ColumnNotFound, InvalidArgsType, InvalidArgsLength, InvalidValueConversion, UnsupportedValueType, DuplicateColumnInArgs, UniqueConstraintViolation, NotNullConstraintViolation, MissingRequiredArgument, InvalidIndexType, InvalidIndexValue, IndexOutOfRange, InvalidType, MultiplePrimaryKeys
 
@@ -26,7 +27,7 @@ def db_exists(f):
         return await f(self, *args, **kwargs)
     return wrapper
 
-
+@dataclass
 class db:
 
     """
@@ -48,7 +49,7 @@ class db:
 
         self.path_to_database = path_to_database
         
-        self.tables = {}
+        self.tables: Dict[str, Dict] = {}
         self.types: Dict[str, type] = {
             "INTEGER": int,
             "REAL": float,
@@ -336,16 +337,12 @@ class db:
                     rows = await cursor.fetchall()
 
                     if rows:
-                        if primary_key and type == "PK":
-                            return rows
-                        else:
-                            items = [i[0] for i in rows]
-                            
-
-                            output: List[Tuple] = []
-                            for index, item in enumerate(items):
-                                output.append((index, item))
-                            return output
+                        items = [i[0] for i in rows]
+                    
+                        output: List[Tuple] = []
+                        for index, item in enumerate(items):
+                            output.append((index, item))
+                        return output
                     else:
                         return None
 
@@ -413,12 +410,15 @@ class db:
                 if isinstance(value, str) and self.types[ctype] in [int, float] and not all([i.isdigit() for i in value]):
                     raise InvalidValueConversion(f"Could not convert value '{value}' (str) to int or float for column '{column}'.")
                 elif isinstance(value, bytes) and not self.types[ctype] is bytes:
-                    raise InvalidValueConversion(f"Could not convert value '{value}' (bytes) to int, float or str for column '{column}'.")
-                elif self.types[ctype] is bytes and not isinstance(value, bytes):
-                    try:
-                        value = value.encode()
-                    except UnicodeEncodeError:
-                        raise EncodeError(f"Could not convert value '{value}' to bytes automatically for column '{column}'.")
+                    raise InvalidValueConversion(f"Could not convert value '{value!r}' (bytes) to int, float or str for column '{column}'.")
+                elif self.types[ctype] is bytes:
+                    if isinstance(value, str):
+                        try:
+                            value = value.encode()
+                        except UnicodeEncodeError:
+                            raise EncodeError(f"Could not convert value '{value!r}' to bytes automatically for column '{column}'.")
+                    else:
+                        raise TypeError(f"Expected str, got {type(value)} for bytes-type column '{column}'.")
                 elif not (isinstance(value, int) or isinstance(value, float) or isinstance(value, str) or isinstance(value, bytes) or value is None):
                     raise UnsupportedValueType(f"Type of value '{value}' is unsupported. Supported types: int, float, str, None")
 
@@ -502,12 +502,14 @@ class db:
             if isinstance(new_value, str) and self.types[ctype] in [int, float] and not all([i.isdigit() for i in new_value]):
                 raise InvalidValueConversion(f"Could not convert value '{new_value}' (str) to int or float for column '{column_edit}'.")
             elif isinstance(new_value, bytes) and not self.types[ctype] is bytes:
-                raise InvalidValueConversion(f"Could not convert value '{new_value}' (bytes) to int, float or str for column '{column_edit}'.")
-            elif self.types[ctype] is bytes and not isinstance(new_value, bytes):
-                try:
-                    new_value = new_value.encode()
-                except UnicodeEncodeError:
-                    raise EncodeError(f"Could not convert value '{new_value}' to bytes automatically for column '{column_edit}'.")
+                raise InvalidValueConversion(f"Could not convert value '{new_value!r}' (bytes) to int, float or str for column '{column_edit}'.")
+            elif self.types[ctype] is bytes:
+                if isinstance(new_value, str):
+                    try:
+                        new_value = new_value.encode()
+                    except UnicodeEncodeError:
+                        raise EncodeError(f"Could not convert value '{new_value!r}' to bytes automatically for column '{column_edit}'.")
+                raise TypeError(f"Expected str, got {type(new_value)} for bytes-type column '{column_edit}'.")
             elif not (isinstance(new_value, int) or isinstance(new_value, float) or isinstance(new_value, str) or isinstance(new_value, bytes) or new_value is None):
                 raise UnsupportedValueType(f"Type of value '{new_value}' is unsupported. Supported types: int, float, str, None")
 
@@ -540,7 +542,7 @@ class db:
             raise AioEasySqliteError(f"Database error: {e}")
 
     @db_exists
-    async def get_row(self, table: str, arg: Tuple[str, Union[str, int, float, bytes, None]] = None, index: int = None) -> Union[Dict, None]:
+    async def get_row(self, table: str, arg: Union[Tuple[str, Union[str, int, float, bytes, None]], None] = None, index: Union[int, None] = None) -> Union[Dict, None]:
         """
         This function returns first found row based on arg or row based on index.
 
@@ -644,8 +646,8 @@ class db:
 
             
 
-    def __dict__(self) -> Dict:
-        return {"path_to_database": self.path_to_database, "tables": self.tables}
+    def to_dict(self) -> Dict:
+        return asdict(self)
 
 
     def __str__(self) -> str:
@@ -840,6 +842,7 @@ class db:
                             for column_info in index_info:
                                 if column_info[2] == column_name:
                                     return True
-            return False
         except Exception as e:
             print(f"Error in _is_column_unique method: {e}")
+        finally:
+            return False

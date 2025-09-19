@@ -1,4 +1,4 @@
-![Static Badge](https://img.shields.io/badge/Python-3776AB?style=for-the-badge&logo=Python&logoColor=white) ![Static Badge](https://img.shields.io/badge/Sqlite-003B57?style=for-the-badge&logo=Sqlite&logoColor=white)
+![Static Badge](https://img.shields.io/badge/Python->=3.5-3776AB?style=for-the-badge&logo=Python&logoColor=white) ![Static Badge](https://img.shields.io/badge/MyPy-Checked-3776AB?style=for-the-badge&logo=Python&logoColor=white)
 
 <p align="center">
     <a href="https://github.com/treizd/AioEasySqlite">
@@ -6,8 +6,6 @@
     </a>
     <br>
     <b>Easier aiosqlite version</b>
-    <br>
-    Sorry, no documentation provided at the moment.
 </p>
 
 ## AioEasySqlite
@@ -159,8 +157,3 @@ If you enjoy using my library, you can support me by donating.
 ``` bash
 pip3 install aioeasysqlite
 ```
-
-
-### Resources
-
-- No current resources provided :)

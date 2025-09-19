@@ -1,5 +1,15 @@
 # Changelog
 
+## [1.0.8] - 2025-09-19
+### Fixed
+- Some type-bugs
+
+## Removed
+- `__dict__` method (replaced with `to_dict()`)
+
+### Updated
+- README.md
+
 ## [1.0.7] - 2025-09-17
 ### Fixed
 - default keyword usage
