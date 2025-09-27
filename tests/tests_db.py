@@ -19,7 +19,7 @@ path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if path not in sys.path:
     sys.path.insert(0, path)
 
-from aioeasysqlite.db import db # FIXED BY ADDING TO PATH
+from aioeasysqlite.db import Db # FIXED BY ADDING TO PATH
 from aioeasysqlite.exceptions import *  # FIXED BY ADDING TO PATH
 
 # NOW USING TEMPORARY DATABASE FILE
@@ -33,21 +33,21 @@ def temp_db():
 
 @pytest.mark.asyncio
 async def test_init(temp_db):
-    db_obj = db(temp_db)
+    db_obj = Db(temp_db)
     assert db_obj.path_to_database == temp_db
     assert db_obj.tables == {}
 
 
 @pytest.mark.asyncio
 async def test_new_table(temp_db):
-    db_obj = db(temp_db)
+    db_obj = Db(temp_db)
     await db_obj.new_table(name="users")
     assert "users" in db_obj.tables
 
 
 @pytest.mark.asyncio
 async def test_add_column_create(temp_db):
-    db_obj = db(temp_db)
+    db_obj = Db(temp_db)
     await db_obj.new_table(name="users_create")
     await db_obj.add_column("users_create", "id", "INTEGER", primary_key=True)
     table_data = await db_obj.get_table("users_create")
@@ -56,7 +56,7 @@ async def test_add_column_create(temp_db):
 
 @pytest.mark.asyncio
 async def test_add_column_alter(temp_db):
-    db_obj = db(temp_db)
+    db_obj = Db(temp_db)
     await db_obj.new_table(name="users_alter")
     await db_obj.add_column("users_alter", "id", "INTEGER", primary_key=True)
     await db_obj.add_column("users_alter", "name", "TEXT")
@@ -65,7 +65,7 @@ async def test_add_column_alter(temp_db):
 
 @pytest.mark.asyncio
 async def test_add_row_and_get_table(temp_db):
-    db_obj = db(temp_db)
+    db_obj = Db(temp_db)
     await db_obj.new_table(name="users1")
     await db_obj.add_column("users1", "id", "INTEGER", primary_key=True)
     await db_obj.add_column("users1", "name", "TEXT")
@@ -78,7 +78,7 @@ async def test_add_row_and_get_table(temp_db):
 
 @pytest.mark.asyncio
 async def test_get_row_by_arg(temp_db):
-    db_obj = db(temp_db)
+    db_obj = Db(temp_db)
     await db_obj.new_table(name="users2")
     await db_obj.add_column("users2", "id", "INTEGER", primary_key=True)
     await db_obj.add_column("users2", "name", "TEXT")
@@ -89,7 +89,7 @@ async def test_get_row_by_arg(temp_db):
 
 @pytest.mark.asyncio
 async def test_edit_row(temp_db):
-    db_obj = db(temp_db)
+    db_obj = Db(temp_db)
     await db_obj.new_table(name="users3")
     await db_obj.add_column("users3", "id", "INTEGER", primary_key=True)
     await db_obj.add_column("users3", "name", "TEXT")
@@ -101,7 +101,7 @@ async def test_edit_row(temp_db):
 
 @pytest.mark.asyncio
 async def test_delete_row(temp_db):
-    db_obj = db(temp_db)
+    db_obj = Db(temp_db)
     await db_obj.new_table(name="users4")
     await db_obj.add_column("users4", "id", "INTEGER", primary_key=True)
     await db_obj.add_column("users4", "name", "TEXT")
@@ -113,7 +113,7 @@ async def test_delete_row(temp_db):
 
 @pytest.mark.asyncio
 async def test_edit_table(temp_db):
-    db_obj = db(temp_db)
+    db_obj = Db(temp_db)
     await db_obj.new_table(name="users5")
     await db_obj.add_column("users5", "id", "INTEGER", primary_key=True)
     await db_obj.edit_table("users5", "clients5")
@@ -123,7 +123,7 @@ async def test_edit_table(temp_db):
 
 @pytest.mark.asyncio
 async def test_delete_table(temp_db):
-    db_obj = db(temp_db)
+    db_obj = Db(temp_db)
     await db_obj.new_table(name="users6")
     await db_obj.add_column("users6", "id", "INTEGER", primary_key=True)
     await db_obj.delete_table("users6")
@@ -132,7 +132,7 @@ async def test_delete_table(temp_db):
 
 @pytest.mark.asyncio
 async def test_delete_column(temp_db):
-    db_obj = db(temp_db)
+    db_obj = Db(temp_db)
     await db_obj.new_table(name="users7")
     await db_obj.add_column("users7", "id", "INTEGER", primary_key=True)
     await db_obj.add_column("users7", "name", "TEXT")
@@ -142,7 +142,7 @@ async def test_delete_column(temp_db):
 
 @pytest.mark.asyncio
 async def test_get_column(temp_db):
-    db_obj = db(temp_db)
+    db_obj = Db(temp_db)
     await db_obj.new_table(name="users8")
     await db_obj.add_column("users8", "id", "INTEGER", primary_key=True)
     await db_obj.add_column("users8", "name", "TEXT")
@@ -154,31 +154,31 @@ async def test_get_column(temp_db):
 
 @pytest.mark.asyncio
 async def test_clear_database(temp_db):
-    db_obj = db(temp_db)
+    db_obj = Db(temp_db)
     await db_obj.new_table(name="users9")
     await db_obj.add_column("users9", "id", "INTEGER", primary_key=True)
     await db_obj.add_row("users9", [("id", 1)])
     await db_obj.clear_database()
-    db_obj = db(temp_db)
+    db_obj = Db(temp_db)
     assert os.path.exists(temp_db)
     assert isinstance(db_obj.tables, dict)
 
 @pytest.mark.asyncio
 async def test_load_data(temp_db):
-    db_obj = db(temp_db)
+    db_obj = Db(temp_db)
     await db_obj.new_table(name="users10")
     await db_obj.add_column("users10", "id", "INTEGER", primary_key=True)
     await db_obj.add_column("users10", "name", "TEXT")
     await db_obj.add_row("users10", [("id", 1), ("name", "John")])
 
-    db_obj2 = db(temp_db)
+    db_obj2 = Db(temp_db)
     await db_obj2.load_data()
     assert "users10" in db_obj2.tables
     assert len(db_obj2.tables["users10"]["columns"]) == 2
 
 @pytest.mark.asyncio
 async def test_keywords(temp_db):
-    db_obj = db(temp_db)
+    db_obj = Db(temp_db)
     await db_obj.new_table(name="users11")
     await db_obj.add_column("users11", "id", "INTEGER", primary_key=True)
     await db_obj.add_column("users11", "balance", "REAL", default=0)
@@ -191,7 +191,7 @@ async def test_keywords(temp_db):
 
 @pytest.mark.asyncio
 async def test_unique(temp_db):
-    db_obj = db(temp_db)
+    db_obj = Db(temp_db)
     await db_obj.new_table(name="users12")
     await db_obj.add_column("users12", "id", "INTEGER", unique=True)
     await db_obj.add_row("users12", [("id", 1)])
@@ -201,7 +201,7 @@ async def test_unique(temp_db):
 
 @pytest.mark.asyncio
 async def test_autoincr(temp_db):
-    db_obj = db(temp_db)
+    db_obj = Db(temp_db)
     await db_obj.new_table(name="users13")
     
     with pytest.raises(InvalidAutoincrementUsage):
@@ -209,7 +209,7 @@ async def test_autoincr(temp_db):
     
 @pytest.mark.asyncio
 async def test_multiple_pks(temp_db):
-    db_obj = db(temp_db)
+    db_obj = Db(temp_db)
     await db_obj.new_table(name="users14")
     await db_obj.add_column("users14", "id", "INTEGER", primary_key=True)
     
@@ -218,7 +218,7 @@ async def test_multiple_pks(temp_db):
   
 @pytest.mark.asyncio
 async def test_db_exists_decorator(temp_db):
-    db_obj = db(temp_db)
+    db_obj = Db(temp_db)
 
     with pytest.raises(TableNotFound):
         await db_obj.add_column("test_table", "test_column", "INTEGER")

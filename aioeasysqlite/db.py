@@ -28,7 +28,7 @@ def db_exists(f):
     return wrapper
 
 @dataclass
-class db:
+class Db:
 
     """
     Main class of the library.
@@ -38,7 +38,7 @@ class db:
     """
 
     def __dir__(self):
-        return ["db", "exceptions"]
+        return ["Db", "exceptions"]
     
     def __init__(self, path_to_database: str):
         if not path_to_database.endswith(".db"):

@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.0.9] - 2025-09-27
+## Fixed
+- class name 'db' -> 'Db'
+
 ## [1.0.8] - 2025-09-19
 ### Fixed
 - Some type-bugs

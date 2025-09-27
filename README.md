@@ -15,11 +15,11 @@ License: MIT
 # Example usage (short)
 ``` python
 import asyncio
-from aioeasysqlite import db
+from aioeasysqlite import Db
 
 
 async def main():
-    database = db(path_to_database="test.db")
+    database = Db(path_to_database="test.db")
 
     # Creates a new table named "users"
     await database.new_table(name="users")
@@ -48,11 +48,11 @@ if __name__ == "__main__":
 # Example usage (full)
 ``` python
 import asyncio
-from aioeasysqlite import db
+from aioeasysqlite import Db
 
 
 async def main():
-    database = db(path_to_database="test.db")
+    database = Db(path_to_database="test.db")
 
     # Creates a new table named "users"
     await database.new_table(name="users")

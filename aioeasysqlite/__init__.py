@@ -8,6 +8,6 @@
 
 
 from . import exceptions
-from .db import db
+from .db import Db
 
-__all__ = ['db', 'exceptions']
+__all__ = ['Db', 'exceptions']
