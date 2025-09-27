@@ -1,4 +1,4 @@
-![Static Badge](https://img.shields.io/badge/Python->=3.5-3776AB?style=for-the-badge&logo=Python&logoColor=white) ![Static Badge](https://img.shields.io/badge/MyPy-Checked-3776AB?style=for-the-badge&logo=Python&logoColor=white)
+![Static Badge](https://img.shields.io/badge/Python->=3.5-3776AB?logo=Python&logoColor=white) ![Static Badge](https://img.shields.io/badge/MyPy-Checked-3776AB?logo=Python&logoColor=white)
 
 <p align="center">
     <a href="https://github.com/treizd/AioEasySqlite">
@@ -151,7 +151,7 @@ If you enjoy using my library, you can support me by donating.
 ### Key Features
 - **Easy**: Makes working with aiosqlite much easier. No need to know SQL query language anymore.
 - **Type-hinted**: Types and methods are all type-hinted, enabling excellent editor support.
-- **Async**: Fully asynchronous.
+- **Async**: Particularly asynchronus.
 
 ### Installing
 ``` bash
