@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.1.0] - 2025-11-21
+## Fixed
+- edit_row() method docstring
+
 ## [1.0.9] - 2025-09-27
 ## Fixed
 - class name 'db' -> 'Db'

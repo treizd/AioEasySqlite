@@ -1,5 +1,4 @@
-![Static Badge](https://img.shields.io/badge/Python->=3.5-3776AB?logo=Python&logoColor=white) ![Static Badge](https://img.shields.io/badge/MyPy-Checked-3776AB?logo=Python&logoColor=white)
-
+![Static Badge](https://img.shields.io/badge/Python->=3.5-3776AB?logo=Python&logoColor=white) ![Static Badge](https://img.shields.io/badge/MyPy-Checked-3776AB?logo=Python&logoColor=white) ![Static Badge](https://img.shields.io/badge/PyTest-Added-3776AB?logo=Python&logoColor=white)
 <p align="center">
     <a href="https://github.com/treizd/AioEasySqlite">
         <img src="https://raw.githubusercontent.com/treizd/aioeasysqlite/main/image.png" alt="AioEasySqlite" width="256">

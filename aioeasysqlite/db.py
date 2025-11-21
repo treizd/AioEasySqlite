@@ -470,8 +470,12 @@ class Db:
         :param table: Table name.
         :type table: :obj:`str`
 
-        :param args: Column name, current value, new value in one tuple
-        :type args: :obj:`Tuple`
+        :param find_args: Column name and value to find in a single tuple
+        :type find_args: :obj:`Tuple`
+        
+        :param edit_args: Column name and value to edit in a single tuple
+        :type edit_args: :obj:`Tuple`
+        
         :return: None
         """
         try:
