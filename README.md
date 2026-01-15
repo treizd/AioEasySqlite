@@ -42,7 +42,7 @@ if __name__ == "__main__":
 ```
 
 ## IMPORTANT NOTE!
-- To retrieve old data from database use load_data method.
+- To retrieve old data from database use async load_data method (`await _.load_data()`).
 
 # Example usage (full)
 ``` python
@@ -71,12 +71,16 @@ async def main():
     # Adds a new row to the "users" table with data (id=1, name="John Doe", age=30, email="john.doe@example.com")
     await database.add_row(table="users", args=[("id", 1), ("name", "John Doe"), ("age", 30), ("email", "john.doe@example.com")])
 
-    # Adds another row to the "users" table with data (id=2, name="Jane Smith", age=25, email="jane.smith@example.com")
-    await database.add_row(table="users", args=[("id", 2), ("name", "Jane Smith"), ("age", 25), ("email", "jane.smith@example.com")])
+    # Adds another row to the "users" table with data (id=2, name="Jane Smith", age=30, email="jane.smith@example.com")
+    await database.add_row(table="users", args=[("id", 2), ("name", "Jane Smith"), ("age", 30), ("email", "jane.smith@example.com")])
 
+    # Gets only people, who are 30 years old
+    thirty_years_olds = await database.get_rows(table="users", arg=("age", 30))
+    print("Thirty years olds:", thirty_years_olds) # OUTPUT: Users Table: [{'id': 1, 'name': 'John Doe', 'age': 30, 'email': 'john.doe@example.com'}, {'id': 2, 'name': 'Jane Smith', 'age': 30, 'email': 'jane.smith@example.com'}]
+    
     # Gets the entire "users" table
     users_table = await database.get_table(table="users")
-    print("Users Table:", users_table) # OUTPUT: Users Table: [{'id': 1, 'name': 'John Doe', 'age': 30, 'email': 'john.doe@example.com'}, {'id': 2, 'name': 'Jane Smith', 'age': 25, 'email': 'jane.smith@example.com'}]
+    print("Users Table:", users_table) # OUTPUT: Users Table: [{'id': 1, 'name': 'John Doe', 'age': 30, 'email': 'john.doe@example.com'}, {'id': 2, 'name': 'Jane Smith', 'age': 30, 'email': 'jane.smith@example.com'}]
 
     # Gets the "name" column from the "users" table with indices
     name_column = await database.get_column(table="users", column="name", type="IND")
@@ -87,7 +91,7 @@ async def main():
 
     # Gets the entire "customers" table
     customers_table = await database.get_table(table="customers")
-    print("Customers Table:", customers_table) # OUTPUT: Customers Table: [{'id': 1, 'name': 'John Doe', 'age': 30, 'email': 'john.doe@example.com'}, {'id': 2, 'name': 'Jane Smith', 'age': 25, 'email': 'jane.smith@example.com'}]
+    print("Customers Table:", customers_table) # OUTPUT: Customers Table: [{'id': 1, 'name': 'John Doe', 'age': 30, 'email': 'john.doe@example.com'}, {'id': 2, 'name': 'Jane Smith', 'age': 30, 'email': 'jane.smith@example.com'}]
 
     # Edits a row in the "customers" table, changing the name "John Doe" to "Johnny Doe"
     await database.edit_row(table="customers", find_args=("name", "John Doe"), edit_args=("name", "Johnny Doe"))
@@ -98,7 +102,7 @@ async def main():
 
     # Gets a row from the "customers" table by index 1
     jane_row = await database.get_row(table="customers", index=1)
-    print("Jane Smith Row:", jane_row) # OUTPUT: Jane Smith Row: {'id': 2, 'name': 'Jane Smith', 'age': 25, 'email': 'jane.smith@example.com'}
+    print("Jane Smith Row:", jane_row) # OUTPUT: Jane Smith Row: {'id': 2, 'name': 'Jane Smith', 'age': 30, 'email': 'jane.smith@example.com'}
 
     # Adds a column "phone" to the "customers" table with type "TEXT"
     await database.add_column(table="customers", name="phone", type="TEXT")
@@ -156,3 +160,6 @@ If you enjoy using my library, you can support me by donating.
 ``` bash
 pip3 install aioeasysqlite
 ```
+
+### Future
+All 'arg' will be replaced by 'args', so people could work with multiple filtered rows at once.

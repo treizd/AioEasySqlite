@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.1.2] - 2026-01-15
+## Added
+- get_rows() method for getting multiple rows
+
+## Updated
+- tests
+
 ## [1.1.0] - 2025-11-21
 ## Fixed
 - edit_row() method docstring

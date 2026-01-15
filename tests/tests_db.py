@@ -223,3 +223,30 @@ async def test_db_exists_decorator(temp_db):
     with pytest.raises(TableNotFound):
         await db_obj.add_column("test_table", "test_column", "INTEGER")
 
+@pytest.mark.asyncio
+async def test_db_get_rows(temp_db):
+    db_obj = Db(temp_db)
+
+    await db_obj.new_table(name="users15")
+    await db_obj.add_column("users15", "id", "INTEGER", primary_key=True, autoincrement=True)
+    await db_obj.add_column("users15", "nickname", "TEXT")
+    await db_obj.add_row("users15", [("nickname", "tester")])
+    await db_obj.add_row("users15", [("nickname", "tester")])
+    await db_obj.add_row("users15", [("nickname", "tester")])
+    await db_obj.add_row("users15", [("nickname", "tester")])
+    await db_obj.add_row("users15", [("nickname", "tester")])
+    await db_obj.add_row("users15", [("nickname", "tester")])
+    
+    result = await db_obj.get_rows("users15", ("nickname", "tester"))
+    assert result[0]["nickname"] == "tester"
+    assert result[0]["id"] == 1
+    assert result[1]["nickname"] == "tester"
+    assert result[1]["id"] == 2
+    assert result[2]["nickname"] == "tester"
+    assert result[2]["id"] == 3
+    assert result[3]["nickname"] == "tester"
+    assert result[3]["id"] == 4
+    assert result[4]["nickname"] == "tester"
+    assert result[4]["id"] == 5
+    assert result[5]["nickname"] == "tester"
+    assert result[5]["id"] == 6

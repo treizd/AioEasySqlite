@@ -612,6 +612,64 @@ class Db:
 
         except aiosqlite.Error as e:
             raise AioEasySqliteError(f"Database error: {e}")
+        
+    @db_exists
+    async def get_rows(self, table: str, arg: Tuple[str, Union[str, int, float, bytes, None]], limit: Union[int, None] = None) -> List[Dict[str, Any]]:
+        """
+        This function returns found rows based on arg
+
+        :param table: Table name.
+        :type table: :obj:`str`
+
+        :param arg: Tuple of (column, value) to search for
+        :type arg: :obj:`tuple`
+
+        :param limit: Limit of rows
+        :type limit: Optional[:obj:`int`]
+
+        :return: List of dicts, where keys are columns and values are names or None
+        :rtype: :obj:`List[Dict] | None`
+        """
+        try:
+            if table not in self.tables:
+                raise TableNotFound(f"No such table '{table}'.")
+
+            if not isinstance(arg, tuple) or len(arg) != 2:
+                raise InvalidArgsType(f"Incorrect type of arg. Must be tuple of (column, value).")
+            
+            column, value = arg
+            
+            if column not in [i["name"] for i in self.tables[table]["columns"]]:
+                raise ColumnNotFound(f"No such column '{column}'.")
+            
+            sql_base = f"SELECT * FROM \"{table}\" WHERE \"{column}\" = ?"
+            
+            if limit is None:
+                sql = sql_base
+                params: Tuple[Union[str, int, float, bytes, None], ...] = (value,)
+            else:
+                if not isinstance(limit, int):
+                    raise InvalidIndexType(f"Limit must be an integer.")
+                if limit < 0:
+                    raise InvalidIndexValue(f"Limit must be greater or equal zero.")
+                sql = f"{sql_base} LIMIT ?"
+                params = (value, limit)
+
+            async with aiosqlite.connect(self.path_to_database) as conn:
+                conn.row_factory = aiosqlite.Row
+                async with conn.cursor() as cursor:
+                    await cursor.execute(sql, params)
+                    rows = await cursor.fetchall()
+                    
+                    if rows:
+                        result = []
+                        for row in rows:
+                            result.append(dict(row))
+                        return result
+                    return []
+
+        except aiosqlite.Error as e:
+            raise AioEasySqliteError(f"Database error: {e}")
 
     @db_exists
     async def delete_row(self, table: str, arg: Tuple[str, Union[str, int, float, bytes, None]]):
