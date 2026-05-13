@@ -1,4 +1,8 @@
-![Static Badge](https://img.shields.io/badge/Python->=3.5-3776AB?logo=Python&logoColor=white) ![Static Badge](https://img.shields.io/badge/MyPy-Checked-3776AB?logo=Python&logoColor=white) ![Static Badge](https://img.shields.io/badge/PyTest-Added-3776AB?logo=Python&logoColor=white)
+![Static Badge](https://img.shields.io/badge/Python->=3.5-3776AB?logo=Python&logoColor=white) ![Static Badge](https://img.shields.io/badge/MyPy-Checked-3776AB?logo=Python&logoColor=white) ![Static Badge](https://img.shields.io/badge/PyTest-Added-3776AB?logo=Python&logoColor=white) [![MIT license](https://img.shields.io/badge/License-MIT-blue.svg)](https://lbesson.mit-license.org/)
+
+[![GitHub contributors](https://badgen.net/github/contributors/treizd/AioEasySqlite)](https://github.com/treizd/AioEasySqlite/) [![GitHub issues](https://img.shields.io/github/issues/treizd/AioEasySqlite)](https://github.com/treizd/AioEasySqlite/issues) 
+
+[![GitHub stars](https://img.shields.io/github/stars/treizd/AioEasySqlite?style=social&label=Stars&maxAge=2592000)](https://github.com/treizd/AioEasySqlite/)
 <p align="center">
     <a href="https://github.com/treizd/AioEasySqlite">
         <img src="https://raw.githubusercontent.com/treizd/aioeasysqlite/main/image.png" alt="AioEasySqlite" width="256">
