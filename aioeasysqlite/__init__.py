@@ -1,5 +1,5 @@
 # aioeasysqlite - Async SQLite client for Python
-# Copyright (c) 2025 Treizd
+# Copyright (c) 2026 Treizd
 #
 # This file is part of aioeasysqlite.
 #
@@ -10,4 +10,5 @@
 from . import exceptions
 from .db import Db
 
-__all__ = ['Db', 'exceptions']
+__all__ = ["Db", "Exceptions"]
+__version__ = "1.2.0"

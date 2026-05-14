@@ -267,9 +267,6 @@ class Db:
             if not_null:
                 parameters.append("NOT NULL")
 
-            if unique:
-                parameters.append("UNIQUE")
-
             if default is not None:
                 if default == "NULL" and not_null:
                     raise InvalidDefaultValue("Can not set 'NULL' default value to 'NOT NULL' column.")
@@ -286,6 +283,13 @@ class Db:
 
                     await cursor.execute(sql)
                     await conn.commit()
+                    
+                    if unique and not primary_key:
+                        try:
+                            await cursor.execute(f"CREATE UNIQUE INDEX IF NOT EXISTS \"idx_{table}_{name}\" ON \"{table}\"(\"{name}\")")
+                            await conn.commit()
+                        except aiosqlite.Error:
+                            pass
 
         except aiosqlite.Error as e:
             raise AioEasySqliteError(f"Database error: {e}")
@@ -337,7 +341,10 @@ class Db:
                     rows = await cursor.fetchall()
 
                     if rows:
-                        items = [i[0] for i in rows]
+                        if primary_key and type == "PK":
+                            items = [i[1] for i in rows]
+                        else:
+                            items = [i[0] for i in rows]
                     
                         output: List[Tuple] = []
                         for index, item in enumerate(items):
@@ -371,8 +378,10 @@ class Db:
             
             await self._remove_column(table, column)
 
-        except Exception as e:
-            raise AioEasySqliteError(f"Unknown error occured: {e}")
+        except aiosqlite.Error as e:
+            if "no such column" in str(e).lower():
+                raise ColumnNotFound(f"No such column '{column}'.")
+            raise AioEasySqliteError(f"Database error: {e}")
         
     @db_exists
     async def add_row(self, table: str, args: List[Tuple[str, Union[str, int, float, bytes, None]]]):
@@ -417,8 +426,8 @@ class Db:
                             value = value.encode()
                         except UnicodeEncodeError:
                             raise EncodeError(f"Could not convert value '{value!r}' to bytes automatically for column '{column}'.")
-                    else:
-                        raise TypeError(f"Expected str, got {type(value)} for bytes-type column '{column}'.")
+                    elif not isinstance(value, bytes):
+                        raise TypeError(f"Expected str or bytes, got {type(value)} for bytes-type column '{column}'.")
                 elif not (isinstance(value, int) or isinstance(value, float) or isinstance(value, str) or isinstance(value, bytes) or value is None):
                     raise UnsupportedValueType(f"Type of value '{value}' is unsupported. Supported types: int, float, str, None")
 
@@ -427,6 +436,14 @@ class Db:
 
             if len(cols) > len(set(cols)):
                 raise DuplicateColumnInArgs(f"Trying to add multiple values to same column.")
+
+            if len(cols) == 0:
+                sql = f"INSERT INTO \"{table}\" DEFAULT VALUES"
+                async with aiosqlite.connect(self.path_to_database) as conn:
+                    async with conn.cursor() as cursor:
+                        await cursor.execute(sql)
+                        await conn.commit()
+                return
 
             items = await self.get_table(table)
             pk_col = await self._get_pk(table)
@@ -448,7 +465,7 @@ class Db:
                     if value is None:
                         raise NotNullConstraintViolation(f"Trying to insert 'NULL' value(-s) to 'NOT NULL' column {column}.")
 
-            vals_sql = ["?" for _ in range(len(vals))]  # Avoiding SQL injections
+            vals_sql = ["?" for _ in range(len(vals))]
             cols_sql = ", ".join(f"\"{col}\"" for col in cols)
             values_sql = ", ".join(vals_sql)
 
@@ -460,21 +477,26 @@ class Db:
                     await conn.commit()
 
         except aiosqlite.Error as e:
+            error_msg = str(e).lower()
+            if "unique" in error_msg:
+                raise UniqueConstraintViolation(f"Unique constraint failed: {e}")
+            elif "not null" in error_msg:
+                raise NotNullConstraintViolation(f"NOT NULL constraint failed: {e}")
             raise AioEasySqliteError(f"Database error: {e}")
-
+    
     @db_exists
-    async def edit_row(self, table: str, find_args: Tuple[str, Union[str, int, float, bytes, None]], edit_args: Tuple[str, Union[str, int, float, bytes, None]]):
+    async def edit_row(self, table: str, find_args: List[Tuple[str, Union[str, int, float, bytes, None]]], edit_args: List[Tuple[str, Union[str, int, float, bytes, None]]]):
         """
-        This function updates row with new value based on args.
+        This function updates first found with new values.
 
         :param table: Table name.
         :type table: :obj:`str`
 
-        :param find_args: Column name and value to find in a single tuple
-        :type find_args: :obj:`Tuple`
+        :param find_args: List of tuples: column names and values to find
+        :type find_args: :obj:`List`
         
-        :param edit_args: Column name and value to edit in a single tuple
-        :type edit_args: :obj:`Tuple`
+        :param edit_args: List of tuples: column names and values to edit
+        :type edit_args: :obj:`List`
         
         :return: None
         """
@@ -482,147 +504,272 @@ class Db:
             if table not in self.tables:
                 raise TableNotFound(f"No such table '{table}'.")
 
-            if not isinstance(find_args, tuple) or len(find_args) != 2:
-                raise InvalidArgsType(f"Incorrect type of find_args. Must be a non-empty tuple.")
+            if not isinstance(find_args, list) or len(find_args) == 0:
+                raise InvalidArgsType(f"Incorrect type of find_args. Must be non-empty list of tuples.")
             
-            if not isinstance(edit_args, tuple) or len(edit_args) != 2:
-                raise InvalidArgsType(f"Incorrect type of edit_args. Must be a non-empty tuple.")
+            if not isinstance(edit_args, list) or len(edit_args) == 0:
+                raise InvalidArgsType(f"Incorrect type of edit_args. Must be non-empty list of tuples.")
 
-            column_edit, new_value = edit_args
-            column_find, current_value = find_args
-            
+            for find_arg in find_args:
+                if not isinstance(find_arg, tuple) or len(find_arg) != 2:
+                    raise InvalidArgsLength(f"Each tuple in find_args must have exactly 2 elements.")
+                column_find, _ = find_arg
+                if column_find not in [i["name"] for i in self.tables[table]["columns"]]:
+                    raise ColumnNotFound(f"No such column '{column_find}'.")
 
-            if column_edit not in [i["name"] for i in self.tables[table]["columns"]]:
-                raise ColumnNotFound(f"No such column '{column_edit}'.")
+            for edit_arg in edit_args:
+                if not isinstance(edit_arg, tuple) or len(edit_arg) != 2:
+                    raise InvalidArgsLength(f"Each tuple in edit_args must have exactly 2 elements.")
+                column_edit, _ = edit_arg
+                if column_edit not in [i["name"] for i in self.tables[table]["columns"]]:
+                    raise ColumnNotFound(f"No such column '{column_edit}'.")
 
-            if column_find not in [i["name"] for i in self.tables[table]["columns"]]:
-                raise ColumnNotFound(f"No such column '{column_find}'.")
-
-            ctype = await self._get_type(table, column_edit)
-
-            if ctype is None:
-                raise AioEasySqliteError(f"Could not determine type for column '{column_edit}'.")
-
-            if isinstance(new_value, str) and self.types[ctype] in [int, float] and not all([i.isdigit() for i in new_value]):
-                raise InvalidValueConversion(f"Could not convert value '{new_value}' (str) to int or float for column '{column_edit}'.")
-            elif isinstance(new_value, bytes) and not self.types[ctype] is bytes:
-                raise InvalidValueConversion(f"Could not convert value '{new_value!r}' (bytes) to int, float or str for column '{column_edit}'.")
-            elif self.types[ctype] is bytes:
-                if isinstance(new_value, str):
-                    try:
-                        new_value = new_value.encode()
-                    except UnicodeEncodeError:
-                        raise EncodeError(f"Could not convert value '{new_value!r}' to bytes automatically for column '{column_edit}'.")
-                raise TypeError(f"Expected str, got {type(new_value)} for bytes-type column '{column_edit}'.")
-            elif not (isinstance(new_value, int) or isinstance(new_value, float) or isinstance(new_value, str) or isinstance(new_value, bytes) or new_value is None):
-                raise UnsupportedValueType(f"Type of value '{new_value}' is unsupported. Supported types: int, float, str, None")
-
-            items = await self.get_table(table)
             pk_col = await self._get_pk(table)
             notnull_cols = await self._get_nn(table)
             unique_cols = await self._get_uq(table)
 
-            column_values = await self.get_column(table, column_edit, "IND")
-            if column_values:
-                itms = [i[1] for i in column_values]
-            else:
-                itms = []
-            if column_edit == pk_col or (unique_cols and column_edit in unique_cols):
-                if new_value in itms and new_value != current_value:
-                    raise UniqueConstraintViolation(f"Trying to insert already existing value to unique column '{column_edit}'.")
+            for column_edit, new_value in edit_args:
+                ctype = await self._get_type(table, column_edit)
+                if ctype is None:
+                    raise AioEasySqliteError(f"Could not determine type for column '{column_edit}'.")
 
-            if notnull_cols and column_edit in notnull_cols:
-                if new_value is None:
-                    raise NotNullConstraintViolation(f"Trying to insert 'NULL' value to 'NOT NULL' column '{column_edit}'.")
+                if isinstance(new_value, str) and self.types[ctype] in [int, float] and not all([i.isdigit() for i in new_value]):
+                    raise InvalidValueConversion(f"Could not convert value '{new_value}' (str) to int or float for column '{column_edit}'.")
+                elif isinstance(new_value, bytes) and not self.types[ctype] is bytes:
+                    raise InvalidValueConversion(f"Could not convert value '{new_value!r}' (bytes) to int, float or str for column '{column_edit}'.")
+                elif self.types[ctype] is bytes:
+                    if isinstance(new_value, str):
+                        try:
+                            new_value = new_value.encode()
+                        except UnicodeEncodeError:
+                            raise EncodeError(f"Could not convert value '{new_value!r}' to bytes automatically for column '{column_edit}'.")
+                    else:
+                        raise TypeError(f"Expected str, got {type(new_value)} for bytes-type column '{column_edit}'.")
+                elif not (isinstance(new_value, int) or isinstance(new_value, float) or isinstance(new_value, str) or isinstance(new_value, bytes) or new_value is None):
+                    raise UnsupportedValueType(f"Type of value '{new_value}' is unsupported. Supported types: int, float, str, None")
 
-            sql = f"UPDATE \"{table}\" SET \"{column_edit}\" = ? WHERE rowid = (SELECT rowid FROM \"{table}\" WHERE \"{column_find}\" = ? LIMIT 1)"
+                column_values = await self.get_column(table, column_edit, "IND")
+                if column_values:
+                    itms = [i[1] for i in column_values]
+                else:
+                    itms = []
+                
+                current_value = None
+                where_clause = " AND ".join([f"\"{col}\" = ?" for col, _ in find_args])
+                find_values = [val for _, val in find_args]
+                
+                check_sql = f"SELECT \"{column_edit}\" FROM \"{table}\" WHERE {where_clause} LIMIT 1"
+                async with aiosqlite.connect(self.path_to_database) as conn:
+                    async with conn.cursor() as cursor:
+                        await cursor.execute(check_sql, find_values)
+                        row = await cursor.fetchone()
+                        if row:
+                            current_value = row[0]
+                
+                if column_edit == pk_col or (unique_cols and column_edit in unique_cols):
+                    if new_value in itms and new_value != current_value:
+                        raise UniqueConstraintViolation(f"Trying to insert already existing value to unique column '{column_edit}'.")
+
+                if notnull_cols and column_edit in notnull_cols:
+                    if new_value is None:
+                        raise NotNullConstraintViolation(f"Trying to insert 'NULL' value to 'NOT NULL' column '{column_edit}'.")
+
+            set_clause = ", ".join([f"\"{col}\" = ?" for col, _ in edit_args])
+            where_clause = " AND ".join([f"\"{col}\" = ?" for col, _ in find_args])
+            
+            set_values = [val for _, val in edit_args]
+            where_values = [val for _, val in find_args]
+            
+            sql = f"UPDATE \"{table}\" SET {set_clause} WHERE rowid = (SELECT rowid FROM \"{table}\" WHERE {where_clause} LIMIT 1)"
 
             async with aiosqlite.connect(self.path_to_database) as conn:
                 async with conn.cursor() as cursor:
-                    await cursor.execute(sql, (new_value, current_value))
+                    await cursor.execute(sql, set_values + where_values)
                     await conn.commit()
 
         except aiosqlite.Error as e:
+            error_msg = str(e).lower()
+            if "unique" in error_msg:
+                raise UniqueConstraintViolation(f"Unique constraint failed: {e}")
+            elif "not null" in error_msg:
+                raise NotNullConstraintViolation(f"NOT NULL constraint failed: {e}")
             raise AioEasySqliteError(f"Database error: {e}")
-
+        
     @db_exists
-    async def get_row(self, table: str, arg: Union[Tuple[str, Union[str, int, float, bytes, None]], None] = None, index: Union[int, None] = None) -> Union[Dict, None]:
+    async def edit_rows(self, table: str, find_args: List[Tuple[str, Union[str, int, float, bytes, None]]], edit_args: List[Tuple[str, Union[str, int, float, bytes, None]]]):
         """
-        This function returns first found row based on arg or row based on index.
+        This function updates rows with new values.
 
         :param table: Table name.
         :type table: :obj:`str`
 
-        :param arg: Tuple of (column, value) to search for
-        :type arg: Optional[:obj:`tuple`]
+        :param find_args: List of tuples: column names and values to find
+        :type find_args: :obj:`List`
+        
+        :param edit_args: List of tuples: column names and values to edit
+        :type edit_args: :obj:`List`
+        
+        :return: None
+        """
+        try:
+            if table not in self.tables:
+                raise TableNotFound(f"No such table '{table}'.")
 
-        :param index: Index of row
-        :type index: Optional[:obj:`int`]
+            if not isinstance(find_args, list) or len(find_args) == 0:
+                raise InvalidArgsType(f"Incorrect type of find_args. Must be non-empty list of tuples.")
+            
+            if not isinstance(edit_args, list) or len(edit_args) == 0:
+                raise InvalidArgsType(f"Incorrect type of edit_args. Must be non-empty list of tuples.")
 
-        :return: Row as dict, where keys are columns and values are names or None
+            for find_arg in find_args:
+                if not isinstance(find_arg, tuple) or len(find_arg) != 2:
+                    raise InvalidArgsLength(f"Each tuple in find_args must have exactly 2 elements.")
+                column_find, _ = find_arg
+                if column_find not in [i["name"] for i in self.tables[table]["columns"]]:
+                    raise ColumnNotFound(f"No such column '{column_find}'.")
+
+            for edit_arg in edit_args:
+                if not isinstance(edit_arg, tuple) or len(edit_arg) != 2:
+                    raise InvalidArgsLength(f"Each tuple in edit_args must have exactly 2 elements.")
+                column_edit, _ = edit_arg
+                if column_edit not in [i["name"] for i in self.tables[table]["columns"]]:
+                    raise ColumnNotFound(f"No such column '{column_edit}'.")
+
+            pk_col = await self._get_pk(table)
+            notnull_cols = await self._get_nn(table)
+            unique_cols = await self._get_uq(table)
+
+            for column_edit, new_value in edit_args:
+                ctype = await self._get_type(table, column_edit)
+                if ctype is None:
+                    raise AioEasySqliteError(f"Could not determine type for column '{column_edit}'.")
+
+                if isinstance(new_value, str) and self.types[ctype] in [int, float] and not all([i.isdigit() for i in new_value]):
+                    raise InvalidValueConversion(f"Could not convert value '{new_value}' (str) to int or float for column '{column_edit}'.")
+                elif isinstance(new_value, bytes) and not self.types[ctype] is bytes:
+                    raise InvalidValueConversion(f"Could not convert value '{new_value!r}' (bytes) to int, float or str for column '{column_edit}'.")
+                elif self.types[ctype] is bytes:
+                    if isinstance(new_value, str):
+                        try:
+                            new_value = new_value.encode()
+                        except UnicodeEncodeError:
+                            raise EncodeError(f"Could not convert value '{new_value!r}' to bytes automatically for column '{column_edit}'.")
+                    else:
+                        raise TypeError(f"Expected str, got {type(new_value)} for bytes-type column '{column_edit}'.")
+                elif not (isinstance(new_value, int) or isinstance(new_value, float) or isinstance(new_value, str) or isinstance(new_value, bytes) or new_value is None):
+                    raise UnsupportedValueType(f"Type of value '{new_value}' is unsupported. Supported types: int, float, str, None")
+
+                column_values = await self.get_column(table, column_edit, "IND")
+                if column_values:
+                    itms = [i[1] for i in column_values]
+                else:
+                    itms = []
+                
+                current_value = None
+                where_clause = " AND ".join([f"\"{col}\" = ?" for col, _ in find_args])
+                find_values = [val for _, val in find_args]
+                
+                check_sql = f"SELECT \"{column_edit}\" FROM \"{table}\" WHERE {where_clause} LIMIT 1"
+                async with aiosqlite.connect(self.path_to_database) as conn:
+                    async with conn.cursor() as cursor:
+                        await cursor.execute(check_sql, find_values)
+                        row = await cursor.fetchone()
+                        if row:
+                            current_value = row[0]
+                
+                if column_edit == pk_col or (unique_cols and column_edit in unique_cols):
+                    if new_value in itms and new_value != current_value:
+                        raise UniqueConstraintViolation(f"Trying to insert already existing value to unique column '{column_edit}'.")
+
+                if notnull_cols and column_edit in notnull_cols:
+                    if new_value is None:
+                        raise NotNullConstraintViolation(f"Trying to insert 'NULL' value to 'NOT NULL' column '{column_edit}'.")
+
+            set_clause = ", ".join([f"\"{col}\" = ?" for col, _ in edit_args])
+            where_clause = " AND ".join([f"\"{col}\" = ?" for col, _ in find_args])
+            
+            set_values = [val for _, val in edit_args]
+            where_values = [val for _, val in find_args]
+            
+            sql = f"UPDATE \"{table}\" SET {set_clause} WHERE {where_clause}"
+
+            async with aiosqlite.connect(self.path_to_database) as conn:
+                async with conn.cursor() as cursor:
+                    await cursor.execute(sql, set_values + where_values)
+                    await conn.commit()
+
+        except aiosqlite.Error as e:
+            error_msg = str(e).lower()
+            if "unique" in error_msg:
+                raise UniqueConstraintViolation(f"Unique constraint failed: {e}")
+            elif "not null" in error_msg:
+                raise NotNullConstraintViolation(f"NOT NULL constraint failed: {e}")
+            raise AioEasySqliteError(f"Database error: {e}")
+    
+    @db_exists
+    async def get_row(self, table: str, args: List[Tuple[str, Union[str, int, float, bytes, None]]]) -> Union[Dict[str, Any], None]:
+        """
+        This function returns first found row.
+
+        :param table: Table name.
+        :type table: :obj:`str`
+
+        :param args: List of (column, value) tuples to search for
+        :type args: :obj:`list`
+
+
+        :return: Dict, where keys are columns and values are names or None
         :rtype: :obj:`Dict | None`
         """
         try:
             if table not in self.tables:
                 raise TableNotFound(f"No such table '{table}'.")
 
-            if not arg and index is None:
-                raise MissingRequiredArgument(f"At least one (arg or index) must be provided for method 'get_row'.")
-
-            result: Union[Dict, None] = None
-
-            if arg and not index:
-                if not arg[0] in [i["name"] for i in self.tables[table]["columns"]]:
-                    raise ColumnNotFound(f"No such column '{arg[0]}'.")
-                
+            if not isinstance(args, list) or len(args) < 1:
+                raise InvalidArgsType(f"Incorrect type of args. Must be a list of (column, value) tuples.")
+            
+            where_clauses = []
+            params = []
+            
+            for arg in args:
                 if not isinstance(arg, tuple) or len(arg) != 2:
-                    raise InvalidArgsType(f"Incorrect type of args. Must be not empty tuple.")
-
-                sql = f"SELECT * FROM \"{table}\" WHERE \"{arg[0]}\" = ? LIMIT 1"
-
-                async with aiosqlite.connect(self.path_to_database) as conn:
-                    conn.row_factory = aiosqlite.Row
-                    async with conn.cursor() as cursor:
-                        await cursor.execute(sql, (arg[1],))
-
-                        row = await cursor.fetchone()
-                        if row:
-                            result = dict(row)
-
-                if result:
-                    return result
-
-            elif index is not None:
-                if not isinstance(index, int):
-                    raise InvalidIndexType(f"Index must be an integer.")
-
-                if index < 0:
-                    raise InvalidIndexValue(f"Index must be greater or equal zero.")
-
-                table_info = await self.get_table(table)
-                if table_info is None or len(table_info) == 0:
-                    return None
-
-                if index >= len(table_info):
-                    raise IndexOutOfRange(f"Index out of range.")
+                    raise InvalidArgsLength(f"Each tuple in args must have exactly 2 elements.")
                 
-                return table_info[index]
+                column, value = arg
+                
+                if column not in [i["name"] for i in self.tables[table]["columns"]]:
+                    raise ColumnNotFound(f"No such column '{column}'.")
+                
+                where_clauses.append(f"\"{column}\" = ?")
+                params.append(value)
+            
+            where_clause = " AND ".join(where_clauses)
+            sql = f"SELECT * FROM \"{table}\" WHERE {where_clause} LIMIT 1"
+            params_tuple: Tuple[Union[str, int, float, bytes, None], ...] = tuple(params)
 
-            return None
+            async with aiosqlite.connect(self.path_to_database) as conn:
+                conn.row_factory = aiosqlite.Row
+                async with conn.cursor() as cursor:
+                    await cursor.execute(sql, params_tuple)
+                    row = await cursor.fetchone()
+                    
+                    if row:
+                        return dict(row)
+                    return None
 
         except aiosqlite.Error as e:
             raise AioEasySqliteError(f"Database error: {e}")
         
     @db_exists
-    async def get_rows(self, table: str, arg: Tuple[str, Union[str, int, float, bytes, None]], limit: Union[int, None] = None) -> List[Dict[str, Any]]:
+    async def get_rows(self, table: str, args: List[Tuple[str, Union[str, int, float, bytes, None]]], limit: Union[int, None] = None) -> List[Dict[str, Any]]:
         """
         This function returns found rows based on arg
 
         :param table: Table name.
         :type table: :obj:`str`
 
-        :param arg: Tuple of (column, value) to search for
-        :type arg: :obj:`tuple`
+        :param args: List of (column, value) tuples to search for
+        :type args: :obj:`list`
 
         :param limit: Limit of rows
         :type limit: Optional[:obj:`int`]
@@ -634,31 +781,36 @@ class Db:
             if table not in self.tables:
                 raise TableNotFound(f"No such table '{table}'.")
 
-            if not isinstance(arg, tuple) or len(arg) != 2:
-                raise InvalidArgsType(f"Incorrect type of arg. Must be tuple of (column, value).")
+            if not isinstance(args, list) or len(args) < 1:
+                raise InvalidArgsType(f"Incorrect type of args. Must be a list of (column, value) tuples.")
             
-            column, value = arg
+            sql_parts = []
+            params: List[Union[str, int, float, bytes, None]] = []
+            for arg in args:
+                column, value = arg
             
-            if column not in [i["name"] for i in self.tables[table]["columns"]]:
-                raise ColumnNotFound(f"No such column '{column}'.")
+                if column not in [i["name"] for i in self.tables[table]["columns"]]:
+                    raise ColumnNotFound(f"No such column '{column}'.")
+
+                sql_parts.append(f"\"{column}\" = ?")
+                params.append(value)
             
-            sql_base = f"SELECT * FROM \"{table}\" WHERE \"{column}\" = ?"
+            where_clause = " AND ".join(sql_parts)
+            sql = f"SELECT * FROM \"{table}\" WHERE {where_clause}"
             
-            if limit is None:
-                sql = sql_base
-                params: Tuple[Union[str, int, float, bytes, None], ...] = (value,)
-            else:
+            if limit is not None:
                 if not isinstance(limit, int):
                     raise InvalidIndexType(f"Limit must be an integer.")
                 if limit < 0:
                     raise InvalidIndexValue(f"Limit must be greater or equal zero.")
-                sql = f"{sql_base} LIMIT ?"
-                params = (value, limit)
+                sql = f"{sql} LIMIT {limit}"
+            
+            params_tuple: Tuple[Union[str, int, float, bytes, None], ...] = tuple(params)
 
             async with aiosqlite.connect(self.path_to_database) as conn:
                 conn.row_factory = aiosqlite.Row
                 async with conn.cursor() as cursor:
-                    await cursor.execute(sql, params)
+                    await cursor.execute(sql, params_tuple)
                     rows = await cursor.fetchall()
                     
                     if rows:
@@ -672,15 +824,15 @@ class Db:
             raise AioEasySqliteError(f"Database error: {e}")
 
     @db_exists
-    async def delete_row(self, table: str, arg: Tuple[str, Union[str, int, float, bytes, None]]):
+    async def delete_row(self, table: str, args: List[Tuple[str, Union[str, int, float, bytes, None]]]):
         """
-        This function deletes first found row based on arg.
+        This function deletes first found row.
 
         :param table: Table name.
         :type table: :obj:`str`
 
-        :param arg: Tuple of (column, value) to search for
-        :type arg: :obj:`tuple`
+        :param arg: List of tuples: (column, value) to search for
+        :type arg: :obj:`list`
 
         :return: None
         """
@@ -688,28 +840,75 @@ class Db:
             if table not in self.tables:
                 raise TableNotFound(f"No such table '{table}'.")
 
-            if not isinstance(arg, tuple) or len(arg) != 2:
-                raise InvalidArgsType(f"Incorrect type of args. Must be not empty tuple.")
+            if not isinstance(args, list) or len(args) == 0:
+                raise InvalidArgsType(f"Incorrect type of args. Must be non-empty list of tuples.")
 
-            column, value = arg
+            for arg in args:
+                if not isinstance(arg, tuple) or len(arg) != 2:
+                    raise InvalidArgsLength(f"Each tuple in args must have exactly 2 elements.")
+                column, _ = arg
+                if column not in [i["name"] for i in self.tables[table]["columns"]]:
+                    raise ColumnNotFound(f"No such column '{column}'.")
 
-            if not column in [i["name"] for i in self.tables[table]["columns"]]:
-                raise ColumnNotFound(f"No such column '{column}'.")
+            where_clause = " AND ".join([f"\"{col}\" = ?" for col, _ in args])
+            where_values = [val for _, val in args]
 
-            sql = f"DELETE FROM \"{table}\" WHERE \"{column}\" = ?"
+            sql = f"DELETE FROM \"{table}\" WHERE rowid IN (SELECT rowid FROM \"{table}\" WHERE {where_clause} LIMIT 1)"
 
             async with aiosqlite.connect(self.path_to_database) as conn:
                 async with conn.cursor() as cursor:
-                    await cursor.execute(sql, (value,))
+                    await cursor.execute(sql, where_values)
                     await conn.commit()
 
         except aiosqlite.Error as e:
             raise AioEasySqliteError(f"Database error: {e}")
+    
+    @db_exists
+    async def delete_rows(self, table: str, args: List[Tuple[str, Union[str, int, float, bytes, None]]]):
+        """
+        This function deletes all found rows.
 
+        :param table: Table name.
+        :type table: :obj:`str`
+
+        :param arg: List of tuples: (column, value) to search for
+        :type arg: :obj:`list`
+
+        :return: None
+        """
+        try:
+            if table not in self.tables:
+                raise TableNotFound(f"No such table '{table}'.")
+
+            if not isinstance(args, list) or len(args) == 0:
+                raise InvalidArgsType(f"Incorrect type of args. Must be non-empty list of tuples.")
+
+            for arg in args:
+                if not isinstance(arg, tuple) or len(arg) != 2:
+                    raise InvalidArgsLength(f"Each tuple in args must have exactly 2 elements.")
+                column, _ = arg
+                if column not in [i["name"] for i in self.tables[table]["columns"]]:
+                    raise ColumnNotFound(f"No such column '{column}'.")
+
+            where_clause = " AND ".join([f"\"{col}\" = ?" for col, _ in args])
+            where_values = [val for _, val in args]
+            
+            sql = f"DELETE FROM \"{table}\" WHERE {where_clause}"
+
+            async with aiosqlite.connect(self.path_to_database) as conn:
+                async with conn.cursor() as cursor:
+                    await cursor.execute(sql, where_values)
+                    await conn.commit()
+
+        except aiosqlite.Error as e:
+            raise AioEasySqliteError(f"Database error: {e}")
             
 
     def to_dict(self) -> Dict:
-        return asdict(self)
+        return {
+            "path_to_database": self.path_to_database,
+            "tables": self.tables
+        }
 
 
     def __str__(self) -> str:
@@ -819,7 +1018,7 @@ class Db:
             result = []
             if rows:
                 for row in rows:
-                    if row[3] == 1: # Corrected: 0 means nullable, 1 means not nullable
+                    if row[3] == 1:
                         result.append(row[1])
             if result:
                 return result

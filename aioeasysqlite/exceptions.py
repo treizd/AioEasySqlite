@@ -1,5 +1,5 @@
 # aioeasysqlite - Async SQLite client for Python
-# Copyright (c) 2025 Treizd
+# Copyright (c) 2026 Treizd
 #
 # This file is part of aioeasysqlite.
 #

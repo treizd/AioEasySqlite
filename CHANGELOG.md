@@ -1,11 +1,15 @@
 # Changelog
 
-## [1.1.2] - 2026-01-15
+## [1.2.0] - 2026-05-14
 ## Added
-- get_rows() method for getting multiple rows
+- New tests
+
+## Fixed
+- Couple CRUD methods
 
 ## Updated
-- tests
+- Tests
+- README
 
 ## [1.1.0] - 2025-11-21
 ## Fixed
