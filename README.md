@@ -155,6 +155,3 @@ If you enjoy using my library, you can support me by donating.
 ``` bash
 pip3 install aioeasysqlite
 ```
-
-### Future
-All 'arg' will be replaced by 'args', so people could work with multiple filtered rows at once.
