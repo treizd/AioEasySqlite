@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.2.1] - 2026-05-17
+## Fixed
+- README.md
+
+## Removed
+- @dataclass decorator
+
 ## [1.2.0] - 2026-05-14
 ## Added
 - New tests

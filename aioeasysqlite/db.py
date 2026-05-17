@@ -13,7 +13,6 @@ import json
 import string
 import aiosqlite
 from functools import wraps
-from dataclasses import dataclass, asdict
 from typing import List, Tuple, Dict, Union, Any
 from .exceptions import AioEasySqliteError, EncodeError, PathNotFound, InvalidDatabasePath, InvalidTableName, InvalidCharacterInName, TableAlreadyExists, TableNotFound, UnknownColumnType, ColumnAlreadyExists, InvalidAutoincrementUsage, InvalidDefaultValue, ColumnNotFound, InvalidArgsType, InvalidArgsLength, InvalidValueConversion, UnsupportedValueType, DuplicateColumnInArgs, UniqueConstraintViolation, NotNullConstraintViolation, MissingRequiredArgument, InvalidIndexType, InvalidIndexValue, IndexOutOfRange, InvalidType, MultiplePrimaryKeys
 
@@ -27,7 +26,7 @@ def db_exists(f):
         return await f(self, *args, **kwargs)
     return wrapper
 
-@dataclass
+
 class Db:
 
     """
